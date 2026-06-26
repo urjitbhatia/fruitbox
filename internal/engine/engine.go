@@ -100,6 +100,51 @@ type UpOptions struct {
 	AbortOnFailure bool
 	// ExitCodeFrom returns this service's exit code from a foreground up.
 	ExitCodeFrom string
+	// Attach restricts foreground log streaming to these services (empty = all
+	// started). NoAttach excludes services. AttachDependencies also streams the
+	// logs of dependency services.
+	Attach             []string
+	NoAttach           []string
+	AttachDependencies bool
+	// Foreground log formatting (mirrors `logs`).
+	NoLogPrefix   bool
+	NoColor       bool
+	LogTimestamps bool
+}
+
+// attachServices computes which started services' logs a foreground up should
+// stream, applying --attach / --no-attach / --attach-dependencies.
+func (e *Engine) attachServices(p *types.Project, started []string, opts UpOptions) []string {
+	startedSet := map[string]bool{}
+	for _, s := range started {
+		startedSet[s] = true
+	}
+	want := map[string]bool{}
+	base := started
+	if len(opts.Attach) > 0 {
+		base = opts.Attach
+	}
+	for _, s := range base {
+		want[s] = true
+		if opts.AttachDependencies {
+			if svc, err := p.GetService(s); err == nil {
+				for dep := range transitiveDeps(p, svc) {
+					want[dep] = true
+				}
+			}
+		}
+	}
+	for _, s := range opts.NoAttach {
+		delete(want, s)
+	}
+	// Preserve started order and only include actually-started services.
+	var out []string
+	for _, s := range started {
+		if want[s] && startedSet[s] {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // selectedServices returns the set of service names Up should act on, or nil
@@ -204,14 +249,35 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 		}
 	}
 
-	// In foreground mode, block until services stop, honoring restart policies.
+	// In foreground mode, stream service logs while supervising, blocking until
+	// services stop (or an --abort-on-* condition triggers).
 	if !opts.Detach {
-		e.logf("Attached; waiting for services to stop (Ctrl-C to detach)")
-		return e.Supervise(ctx, p, started, SuperviseOptions{
+		e.logf("Attached; streaming logs (Ctrl-C to detach)")
+
+		logCtx, cancelLogs := context.WithCancel(ctx)
+		logsDone := make(chan struct{})
+		go func() {
+			defer close(logsDone)
+			attach := e.attachServices(p, started, opts)
+			if len(attach) == 0 {
+				return
+			}
+			_ = e.Logs(logCtx, p, attach, LogOptions{
+				Follow:     true,
+				NoPrefix:   opts.NoLogPrefix,
+				NoColor:    opts.NoColor,
+				Timestamps: opts.LogTimestamps,
+			})
+		}()
+
+		err := e.Supervise(ctx, p, started, SuperviseOptions{
 			AbortOnExit:    opts.AbortOnExit,
 			AbortOnFailure: opts.AbortOnFailure,
 			ExitCodeFrom:   opts.ExitCodeFrom,
 		})
+		cancelLogs()
+		<-logsDone
+		return err
 	}
 	return nil
 }

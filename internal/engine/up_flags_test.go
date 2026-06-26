@@ -119,3 +119,49 @@ func TestUpCreatesMissingNetwork(t *testing.T) {
 		t.Errorf("up should create a missing network, calls: %v", fake.CommandArgs())
 	}
 }
+
+func TestUpForegroundStreamsLogs(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	// Containers are already stopped so Supervise returns immediately.
+	fake.On("inspect basic-web-1", runner.Result{Stdout: `[{"status":"stopped"}]`}, nil)
+	fake.On("inspect basic-db-1", runner.Result{Stdout: `[{"status":"stopped"}]`}, nil)
+	// Log output per container.
+	fake.On("logs --follow basic-web-1", runner.Result{Stdout: "web hello\n"}, nil)
+	fake.On("logs --follow basic-db-1", runner.Result{Stdout: "db hello\n"}, nil)
+	var out strings.Builder
+	e := newTestEngine(fake)
+	e.Out = &out
+
+	// Foreground (Detach:false) -> streams logs then supervises to completion.
+	if err := e.Up(context.Background(), proj, UpOptions{NoColor: true}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	s := out.String()
+	if !strings.Contains(s, "web | web hello") || !strings.Contains(s, "db  | db hello") {
+		t.Errorf("foreground up should stream prefixed logs, got:\n%s", s)
+	}
+}
+
+func TestUpForegroundNoAttachExcludes(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	fake.On("inspect basic-web-1", runner.Result{Stdout: `[{"status":"stopped"}]`}, nil)
+	fake.On("inspect basic-db-1", runner.Result{Stdout: `[{"status":"stopped"}]`}, nil)
+	fake.On("logs --follow basic-web-1", runner.Result{Stdout: "web hello\n"}, nil)
+	fake.On("logs --follow basic-db-1", runner.Result{Stdout: "db hello\n"}, nil)
+	var out strings.Builder
+	e := newTestEngine(fake)
+	e.Out = &out
+
+	if err := e.Up(context.Background(), proj, UpOptions{NoColor: true, NoAttach: []string{"db"}}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	s := out.String()
+	if !strings.Contains(s, "web hello") {
+		t.Errorf("web logs should stream:\n%s", s)
+	}
+	if strings.Contains(s, "db hello") {
+		t.Errorf("--no-attach db should suppress db logs:\n%s", s)
+	}
+}

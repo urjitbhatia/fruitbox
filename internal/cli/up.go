@@ -25,6 +25,12 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		abortOnExit    bool
 		abortOnFailure bool
 		exitCodeFrom   string
+		attach         []string
+		noAttach       []string
+		attachDeps     bool
+		noLogPrefix    bool
+		noColor        bool
+		timestamps     bool
 		scaleFlags     []string
 	)
 	cmd := &cobra.Command{
@@ -40,21 +46,27 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			up := engine.UpOptions{
-				Detach:         detach,
-				NoBuild:        noBuild,
-				RemoveOrphans:  removeOrphans,
-				Scale:          scale,
-				NoStart:        noStart,
-				Wait:           wait,
-				WaitTimeout:    waitTimeout,
-				Pull:           pull,
-				ForceRecreate:  forceRecreate,
-				NoRecreate:     noRecreate,
-				Services:       services,
-				NoDeps:         noDeps,
-				AbortOnExit:    abortOnExit,
-				AbortOnFailure: abortOnFailure,
-				ExitCodeFrom:   exitCodeFrom,
+				Detach:             detach,
+				NoBuild:            noBuild,
+				RemoveOrphans:      removeOrphans,
+				Scale:              scale,
+				NoStart:            noStart,
+				Wait:               wait,
+				WaitTimeout:        waitTimeout,
+				Pull:               pull,
+				ForceRecreate:      forceRecreate,
+				NoRecreate:         noRecreate,
+				Services:           services,
+				NoDeps:             noDeps,
+				AbortOnExit:        abortOnExit,
+				AbortOnFailure:     abortOnFailure,
+				ExitCodeFrom:       exitCodeFrom,
+				Attach:             attach,
+				NoAttach:           noAttach,
+				AttachDependencies: attachDeps,
+				NoLogPrefix:        noLogPrefix,
+				NoColor:            noColor,
+				LogTimestamps:      timestamps,
 			}
 			if cmd.Flags().Changed("timeout") {
 				up.Timeout = &timeout
@@ -77,6 +89,12 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&abortOnExit, "abort-on-container-exit", false, "Stop all containers if any container stopped")
 	f.BoolVar(&abortOnFailure, "abort-on-container-failure", false, "Stop all containers if any container exited with failure")
 	f.StringVar(&exitCodeFrom, "exit-code-from", "", "Return the exit code of the selected service's container")
+	f.StringArrayVar(&attach, "attach", nil, "Restrict attaching to the specified services")
+	f.StringArrayVar(&noAttach, "no-attach", nil, "Do not attach (stream logs) to the specified services")
+	f.BoolVar(&attachDeps, "attach-dependencies", false, "Automatically attach to log output of dependent services")
+	f.BoolVar(&noLogPrefix, "no-log-prefix", false, "Don't print prefix in logs")
+	f.BoolVar(&noColor, "no-color", false, "Produce monochrome output")
+	f.BoolVar(&timestamps, "timestamps", false, "Show timestamps")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }
