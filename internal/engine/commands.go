@@ -20,7 +20,7 @@ type CreateOptions struct {
 // without starting them (compose `create`).
 func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOptions) error {
 	if !opts.NoBuild {
-		if err := e.Build(ctx, p, nil); err != nil {
+		if err := e.Build(ctx, p, nil, BuildOptions{}); err != nil {
 			return err
 		}
 	}

@@ -14,7 +14,7 @@ func TestBuildRunsBuildForBuildServicesOnly(t *testing.T) {
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
 
-	if err := e.Build(context.Background(), proj, nil); err != nil {
+	if err := e.Build(context.Background(), proj, nil, BuildOptions{}); err != nil {
 		t.Fatalf("Build: %v", err)
 	}
 	calls := fake.CommandArgs()

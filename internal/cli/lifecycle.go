@@ -6,7 +6,12 @@ import (
 )
 
 func newBuildCommand(opts *globalOptions) *cobra.Command {
-	return &cobra.Command{
+	var (
+		buildArgs []string
+		noCache   bool
+		pull      bool
+	)
+	cmd := &cobra.Command{
 		Use:   "build [SERVICE...]",
 		Short: "Build or rebuild service images",
 		RunE: func(cmd *cobra.Command, services []string) error {
@@ -14,9 +19,18 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Build(cmd.Context(), proj, services)
+			return opts.engine(cmd.OutOrStdout()).Build(cmd.Context(), proj, services, engine.BuildOptions{
+				BuildArgs: buildArgs,
+				NoCache:   noCache,
+				Pull:      pull,
+			})
 		},
 	}
+	f := cmd.Flags()
+	f.StringArrayVar(&buildArgs, "build-arg", nil, "Set build-time variables for services")
+	f.BoolVar(&noCache, "no-cache", false, "Do not use cache when building the image")
+	f.BoolVar(&pull, "pull", false, "Always attempt to pull a newer version of the image")
+	return cmd
 }
 
 func newStartCommand(opts *globalOptions) *cobra.Command {

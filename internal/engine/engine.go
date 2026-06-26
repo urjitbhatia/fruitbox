@@ -99,7 +99,7 @@ func effectiveScale(svc types.ServiceConfig, overrides map[string]int) int {
 // container in dependency order. Services with a build section are built first.
 func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error {
 	if !opts.NoBuild {
-		if err := e.Build(ctx, p, nil); err != nil {
+		if err := e.Build(ctx, p, nil, BuildOptions{}); err != nil {
 			return err
 		}
 	}
