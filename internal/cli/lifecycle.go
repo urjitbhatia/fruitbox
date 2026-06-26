@@ -106,7 +106,13 @@ func timeoutPtr(cmd *cobra.Command) *int {
 }
 
 func newPullCommand(opts *globalOptions) *cobra.Command {
-	return &cobra.Command{
+	var (
+		quiet           bool
+		includeDeps     bool
+		ignoreFailures  bool
+		ignoreBuildable bool
+	)
+	cmd := &cobra.Command{
 		Use:   "pull [SERVICE...]",
 		Short: "Pull images for services",
 		RunE: func(cmd *cobra.Command, services []string) error {
@@ -114,9 +120,20 @@ func newPullCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Pull(cmd.Context(), proj, services)
+			return opts.engine(cmd.OutOrStdout()).Pull(cmd.Context(), proj, services, engine.PullOptions{
+				Quiet:           quiet,
+				IncludeDeps:     includeDeps,
+				IgnoreFailures:  ignoreFailures,
+				IgnoreBuildable: ignoreBuildable,
+			})
 		},
 	}
+	f := cmd.Flags()
+	f.BoolVarP(&quiet, "quiet", "q", false, "Pull without printing progress information")
+	f.BoolVar(&includeDeps, "include-deps", false, "Also pull services declared as dependencies")
+	f.BoolVar(&ignoreFailures, "ignore-pull-failures", false, "Pull what it can and ignore images with pull failures")
+	f.BoolVar(&ignoreBuildable, "ignore-buildable", false, "Ignore images that can be built")
+	return cmd
 }
 
 func newExecCommand(opts *globalOptions) *cobra.Command {

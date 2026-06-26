@@ -66,7 +66,7 @@ func TestPullDedupesImages(t *testing.T) {
 	proj := load(t, "basic")
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
-	if err := e.Pull(context.Background(), proj, nil); err != nil {
+	if err := e.Pull(context.Background(), proj, nil, PullOptions{}); err != nil {
 		t.Fatalf("Pull: %v", err)
 	}
 	calls := fake.CommandArgs()

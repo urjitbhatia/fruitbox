@@ -132,11 +132,21 @@ func (e *Engine) Kill(ctx context.Context, p *types.Project, names []string, sig
 	return nil
 }
 
+// PullOptions controls Pull.
+type PullOptions struct {
+	Quiet           bool // suppress progress logs
+	IncludeDeps     bool // also pull transitive dependencies of the named services
+	IgnoreFailures  bool // continue when an individual pull fails
+	IgnoreBuildable bool // skip services that have a build section
+}
+
 // Pull pulls the images referenced by the named services (or all services).
-func (e *Engine) Pull(ctx context.Context, p *types.Project, names []string) error {
+func (e *Engine) Pull(ctx context.Context, p *types.Project, names []string, opts PullOptions) error {
 	if len(names) == 0 {
 		names = p.ServiceNames()
 	}
+	names = e.maybeIncludeDeps(p, names, opts.IncludeDeps)
+
 	seen := map[string]bool{}
 	for _, name := range names {
 		svc, err := p.GetService(name)
@@ -147,16 +157,50 @@ func (e *Engine) Pull(ctx context.Context, p *types.Project, names []string) err
 		if svc.Image == "" {
 			continue
 		}
+		if opts.IgnoreBuildable && svc.Build != nil {
+			continue
+		}
 		if seen[svc.Image] {
 			continue
 		}
 		seen[svc.Image] = true
-		e.logf("Pulling %s (%s)", svc.Name, svc.Image)
+		if !opts.Quiet {
+			e.logf("Pulling %s (%s)", svc.Name, svc.Image)
+		}
 		if _, err := e.Runner.Run(ctx, "image", "pull", svc.Image); err != nil {
+			if opts.IgnoreFailures {
+				e.logf("WARNING: pull %s failed: %v", svc.Image, err)
+				continue
+			}
 			return fmt.Errorf("pull %s: %w", svc.Image, err)
 		}
 	}
 	return nil
+}
+
+// maybeIncludeDeps expands a service-name list with transitive dependencies
+// when include is set.
+func (e *Engine) maybeIncludeDeps(p *types.Project, names []string, include bool) []string {
+	if !include {
+		return names
+	}
+	set := map[string]bool{}
+	var ordered []string
+	add := func(n string) {
+		if !set[n] {
+			set[n] = true
+			ordered = append(ordered, n)
+		}
+	}
+	for _, n := range names {
+		add(n)
+		if svc, err := p.GetService(n); err == nil {
+			for dep := range transitiveDeps(p, svc) {
+				add(dep)
+			}
+		}
+	}
+	return ordered
 }
 
 // Exec runs a command in a replica of a service's container, interactively

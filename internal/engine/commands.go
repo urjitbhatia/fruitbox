@@ -80,11 +80,20 @@ func (e *Engine) Rm(ctx context.Context, p *types.Project, names []string, opts 
 	return nil
 }
 
+// PushOptions controls Push.
+type PushOptions struct {
+	Quiet          bool // suppress progress logs
+	IncludeDeps    bool // also push dependencies of the named services
+	IgnoreFailures bool // continue when an individual push fails
+}
+
 // Push pushes the images of the named services (or all) to their registries.
-func (e *Engine) Push(ctx context.Context, p *types.Project, names []string) error {
+func (e *Engine) Push(ctx context.Context, p *types.Project, names []string, opts PushOptions) error {
 	if len(names) == 0 {
 		names = p.ServiceNames()
 	}
+	names = e.maybeIncludeDeps(p, names, opts.IncludeDeps)
+
 	seen := map[string]bool{}
 	for _, name := range names {
 		svc, err := p.GetService(name)
@@ -99,8 +108,14 @@ func (e *Engine) Push(ctx context.Context, p *types.Project, names []string) err
 			continue
 		}
 		seen[image] = true
-		e.logf("Pushing %s (%s)", svc.Name, image)
+		if !opts.Quiet {
+			e.logf("Pushing %s (%s)", svc.Name, image)
+		}
 		if _, err := e.Runner.Run(ctx, "image", "push", image); err != nil {
+			if opts.IgnoreFailures {
+				e.logf("WARNING: push %s failed: %v", image, err)
+				continue
+			}
 			return fmt.Errorf("push %s: %w", image, err)
 		}
 	}

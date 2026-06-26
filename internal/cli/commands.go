@@ -49,7 +49,12 @@ func newRmCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newPushCommand(opts *globalOptions) *cobra.Command {
-	return &cobra.Command{
+	var (
+		quiet          bool
+		includeDeps    bool
+		ignoreFailures bool
+	)
+	cmd := &cobra.Command{
 		Use:   "push [SERVICE...]",
 		Short: "Push service images to their registries",
 		RunE: func(cmd *cobra.Command, services []string) error {
@@ -57,9 +62,18 @@ func newPushCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Push(cmd.Context(), proj, services)
+			return opts.engine(cmd.OutOrStdout()).Push(cmd.Context(), proj, services, engine.PushOptions{
+				Quiet:          quiet,
+				IncludeDeps:    includeDeps,
+				IgnoreFailures: ignoreFailures,
+			})
 		},
 	}
+	f := cmd.Flags()
+	f.BoolVarP(&quiet, "quiet", "q", false, "Push without printing progress information")
+	f.BoolVar(&includeDeps, "include-deps", false, "Also push images of services declared as dependencies")
+	f.BoolVar(&ignoreFailures, "ignore-push-failures", false, "Push what it can and ignore images with push failures")
+	return cmd
 }
 
 func newScaleCommand(opts *globalOptions) *cobra.Command {

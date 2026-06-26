@@ -104,7 +104,7 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 		}
 	}
 	if opts.Pull == "always" {
-		if err := e.Pull(ctx, p, nil); err != nil {
+		if err := e.Pull(ctx, p, nil, PullOptions{}); err != nil {
 			return err
 		}
 	}

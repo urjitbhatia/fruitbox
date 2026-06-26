@@ -43,7 +43,7 @@ func TestPushDedupesImages(t *testing.T) {
 	proj := load(t, "basic")
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
-	if err := e.Push(context.Background(), proj, nil); err != nil {
+	if err := e.Push(context.Background(), proj, nil, PushOptions{}); err != nil {
 		t.Fatalf("Push: %v", err)
 	}
 	calls := fake.CommandArgs()
