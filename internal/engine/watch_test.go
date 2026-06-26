@@ -73,10 +73,36 @@ func TestWatchSyncsChangedFile(t *testing.T) {
 	}
 	e.Now = func() time.Time { return time.Unix(0, 0) }
 
-	if err := e.Watch(context.Background(), proj, 2); err != nil {
+	if err := e.Watch(context.Background(), proj, 2, WatchOptions{NoUp: true}); err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
 	if firstMatch(fake.CommandArgs(), "cp "+file+" basic-web-1:/app/main.go") == -1 {
 		t.Errorf("expected sync cp for changed file, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestWatchUpsFirstByDefault(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	// maxPolls=1 (seed snapshot, no firing); default opts -> should up first.
+	if err := e.Watch(context.Background(), proj, 1, WatchOptions{}); err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	// Up runs containers (detached).
+	if firstMatch(fake.CommandArgs(), "run --name basic-db-1 --detach") == -1 {
+		t.Errorf("watch should up the project first, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestWatchNoUpSkipsUp(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Watch(context.Background(), proj, 1, WatchOptions{NoUp: true}); err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "run --name basic-db-1") != -1 {
+		t.Errorf("--no-up should not start services, calls: %v", fake.CommandArgs())
 	}
 }

@@ -39,11 +39,22 @@ func watchIgnored(changedPath string, ignore []string) bool {
 	return false
 }
 
-// Watch implements `compose watch`: it monitors each service's develop.watch
-// triggers and applies sync/restart/rebuild actions on change. maxPolls bounds
-// the number of polling rounds (0 = run until cancelled); it exists so tests
-// terminate deterministically.
-func (e *Engine) Watch(ctx context.Context, p *types.Project, maxPolls int) error {
+// WatchOptions controls Watch.
+type WatchOptions struct {
+	NoUp  bool // don't build & start services before watching
+	Quiet bool // suppress build/sync progress logs
+}
+
+// Watch implements `compose watch`: it (by default) brings the project up, then
+// monitors each service's develop.watch triggers and applies sync/restart/
+// rebuild actions on change. maxPolls bounds the number of polling rounds
+// (0 = run until cancelled); it exists so tests terminate deterministically.
+func (e *Engine) Watch(ctx context.Context, p *types.Project, maxPolls int, opts WatchOptions) error {
+	if !opts.NoUp {
+		if err := e.Up(ctx, p, UpOptions{Detach: true}); err != nil {
+			return err
+		}
+	}
 	type rule struct {
 		svc     types.ServiceConfig
 		trigger types.Trigger
@@ -85,11 +96,13 @@ func (e *Engine) Watch(ctx context.Context, p *types.Project, maxPolls int) erro
 				if first {
 					continue // seed snapshot without firing on the first pass
 				}
-				e.applyWatchChange(ctx, p, r.svc, r.trigger, cp, restart, rebuild)
+				e.applyWatchChange(ctx, p, r.svc, r.trigger, cp, restart, rebuild, opts.Quiet)
 			}
 		}
 		for svc := range rebuild {
-			e.logf("watch: rebuilding %s", svc)
+			if !opts.Quiet {
+				e.logf("watch: rebuilding %s", svc)
+			}
 			s, _ := p.GetService(svc)
 			_ = e.buildService(ctx, p, s)
 			_ = e.Restart(ctx, p, []string{svc}, nil)
@@ -98,7 +111,9 @@ func (e *Engine) Watch(ctx context.Context, p *types.Project, maxPolls int) erro
 			if rebuild[svc] {
 				continue
 			}
-			e.logf("watch: restarting %s", svc)
+			if !opts.Quiet {
+				e.logf("watch: restarting %s", svc)
+			}
 			_ = e.Restart(ctx, p, []string{svc}, nil)
 		}
 
@@ -138,12 +153,14 @@ func (e *Engine) scanChanges(trig types.Trigger, prev, cur map[string]time.Time)
 
 // applyWatchChange performs the action for a single changed file, queuing
 // service restarts/rebuilds for the caller to dedupe per round.
-func (e *Engine) applyWatchChange(ctx context.Context, p *types.Project, svc types.ServiceConfig, trig types.Trigger, changedPath string, restart, rebuild map[string]bool) {
+func (e *Engine) applyWatchChange(ctx context.Context, p *types.Project, svc types.ServiceConfig, trig types.Trigger, changedPath string, restart, rebuild map[string]bool, quiet bool) {
 	switch trig.Action {
 	case types.WatchActionSync, types.WatchActionSyncRestart, types.WatchActionSyncExec:
 		target := syncTargetPath(trig.Path, trig.Target, changedPath)
 		cname := containerName(p, svc, 1)
-		e.logf("watch: syncing %s -> %s:%s", changedPath, cname, target)
+		if !quiet {
+			e.logf("watch: syncing %s -> %s:%s", changedPath, cname, target)
+		}
 		_, _ = e.Runner.Run(ctx, "cp", changedPath, cname+":"+target)
 		if trig.Action == types.WatchActionSyncRestart {
 			restart[svc.Name] = true

@@ -30,7 +30,7 @@ var knownFlagGaps = map[string][]string{
 	"pull":   {"policy"},
 	"run":    {"env-from-file", "pull", "quiet", "quiet-build", "quiet-pull", "use-aliases"},
 	"up":     {"abort-on-container-exit", "abort-on-container-failure", "always-recreate-deps", "attach", "attach-dependencies", "build", "exit-code-from", "force-recreate", "menu", "no-attach", "no-color", "no-deps", "no-log-prefix", "no-recreate", "quiet-build", "quiet-pull", "renew-anon-volumes", "timeout", "timestamps", "watch", "yes"},
-	"watch":  {"no-up", "prune", "quiet"},
+	"watch":  {"prune"},
 }
 
 // flagRe matches long flags; uppercase is allowed because docker spells some

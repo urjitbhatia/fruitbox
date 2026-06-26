@@ -118,6 +118,10 @@ func newScaleCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newWatchCommand(opts *globalOptions) *cobra.Command {
+	var (
+		noUp  bool
+		quiet bool
+	)
 	cmd := &cobra.Command{
 		Use:   "watch",
 		Short: "Watch source files and sync/restart/rebuild services on change",
@@ -127,9 +131,14 @@ func newWatchCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Watch(cmd.Context(), proj, 0)
+			return opts.engine(cmd.OutOrStdout()).Watch(cmd.Context(), proj, 0, engine.WatchOptions{
+				NoUp:  noUp,
+				Quiet: quiet,
+			})
 		},
 	}
+	cmd.Flags().BoolVar(&noUp, "no-up", false, "Do not build & start services before watching")
+	cmd.Flags().BoolVar(&quiet, "quiet", false, "Suppress progress output during watch")
 	return cmd
 }
 
