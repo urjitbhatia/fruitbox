@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/urjitbhatia/fruitbox/internal/runner"
@@ -16,11 +17,48 @@ type Engine struct {
 	Runner runner.Runner
 	// Out receives human-readable progress messages.
 	Out io.Writer
+	// Now returns the current time; injectable for tests. Defaults to time.Now.
+	Now func() time.Time
+	// Sleep pauses for d or until ctx is cancelled; injectable for tests.
+	Sleep func(ctx context.Context, d time.Duration) error
 }
 
 // New returns an Engine using the given runner and progress writer.
 func New(r runner.Runner, out io.Writer) *Engine {
-	return &Engine{Runner: r, Out: out}
+	return &Engine{
+		Runner: r,
+		Out:    out,
+		Now:    time.Now,
+		Sleep:  realSleep,
+	}
+}
+
+func realSleep(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+func (e *Engine) now() time.Time {
+	if e.Now != nil {
+		return e.Now()
+	}
+	return time.Now()
+}
+
+func (e *Engine) sleep(ctx context.Context, d time.Duration) error {
+	if e.Sleep != nil {
+		return e.Sleep(ctx, d)
+	}
+	return realSleep(ctx, d)
 }
 
 // UpOptions controls the behavior of Up.
@@ -29,6 +67,21 @@ type UpOptions struct {
 	Detach bool
 	// NoBuild skips building images for services with a build section.
 	NoBuild bool
+	// Scale overrides the replica count per service name (compose --scale).
+	Scale map[string]int
+	// RemoveOrphans removes containers for services not in the compose file.
+	RemoveOrphans bool
+}
+
+// effectiveScale returns the replica count for a service, honoring a --scale
+// override when present.
+func effectiveScale(svc types.ServiceConfig, overrides map[string]int) int {
+	if overrides != nil {
+		if n, ok := overrides[svc.Name]; ok && n >= 0 {
+			return n
+		}
+	}
+	return scaleOf(svc)
 }
 
 // Up creates the project's networks and volumes, then starts every service
@@ -36,6 +89,11 @@ type UpOptions struct {
 func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error {
 	if !opts.NoBuild {
 		if err := e.Build(ctx, p, nil); err != nil {
+			return err
+		}
+	}
+	if opts.RemoveOrphans {
+		if err := e.removeOrphans(ctx, p); err != nil {
 			return err
 		}
 	}
@@ -53,6 +111,12 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 	for _, name := range order {
 		svc, err := p.GetService(name)
 		if err != nil {
+			return err
+		}
+		// Wait for declared dependencies to satisfy their conditions before
+		// starting this service. Dependencies appear earlier in the order, so
+		// they are already started by now.
+		if err := e.waitForDependencies(ctx, p, svc); err != nil {
 			return err
 		}
 		if err := e.startService(ctx, p, svc, opts); err != nil {
@@ -93,7 +157,10 @@ func (e *Engine) ensureVolumes(ctx context.Context, p *types.Project) error {
 }
 
 func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.ServiceConfig, opts UpOptions) error {
-	replicas := scaleOf(svc)
+	for _, warning := range translate.UnsupportedWarnings(svc) {
+		e.logf("WARNING: %s: %s", svc.Name, warning)
+	}
+	replicas := effectiveScale(svc, opts.Scale)
 	for n := 1; n <= replicas; n++ {
 		args, err := translate.BuildRunArgs(p, svc, translate.RunOptions{
 			Number: n,

@@ -31,6 +31,12 @@ func sanitize(s string) string {
 	return nameSanitizer.ReplaceAllString(s, "")
 }
 
+// ContainerNameSegment lower-cases and sanitizes a string into a valid segment
+// of a container name (project or service component).
+func ContainerNameSegment(s string) string {
+	return sanitize(s)
+}
+
 // RunOptions controls how run/create arguments are generated for a replica.
 type RunOptions struct {
 	// Number is the 1-based replica index of this container.

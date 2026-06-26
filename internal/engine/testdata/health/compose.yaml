@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:16
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 1s
+      retries: 5
+      start_period: 0s
+  migrate:
+    image: myorg/migrate:latest
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    image: nginx:1.27
+    depends_on:
+      migrate:
+        condition: service_completed_successfully

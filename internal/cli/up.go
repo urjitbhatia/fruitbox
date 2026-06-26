@@ -1,14 +1,20 @@
 package cli
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/urjitbhatia/fruitbox/internal/engine"
 )
 
 func newUpCommand(opts *globalOptions) *cobra.Command {
 	var (
-		detach  bool
-		noBuild bool
+		detach        bool
+		noBuild       bool
+		removeOrphans bool
+		scaleFlags    []string
 	)
 	cmd := &cobra.Command{
 		Use:   "up",
@@ -19,13 +25,44 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			scale, err := parseScale(scaleFlags)
+			if err != nil {
+				return err
+			}
 			e := opts.engine(cmd.OutOrStdout())
-			return e.Up(cmd.Context(), proj, engine.UpOptions{Detach: detach, NoBuild: noBuild})
+			return e.Up(cmd.Context(), proj, engine.UpOptions{
+				Detach:        detach,
+				NoBuild:       noBuild,
+				RemoveOrphans: removeOrphans,
+				Scale:         scale,
+			})
 		},
 	}
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "Run containers in the background")
 	cmd.Flags().BoolVar(&noBuild, "no-build", false, "Don't build images, even if they're missing")
+	cmd.Flags().BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
+	cmd.Flags().StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
+}
+
+// parseScale parses repeated SERVICE=NUM flags into a map.
+func parseScale(flags []string) (map[string]int, error) {
+	if len(flags) == 0 {
+		return nil, nil
+	}
+	out := map[string]int{}
+	for _, f := range flags {
+		svc, num, ok := strings.Cut(f, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid --scale %q, want SERVICE=NUM", f)
+		}
+		n, err := strconv.Atoi(num)
+		if err != nil || n < 0 {
+			return nil, fmt.Errorf("invalid --scale %q: NUM must be a non-negative integer", f)
+		}
+		out[svc] = n
+	}
+	return out, nil
 }
 
 func newDownCommand(opts *globalOptions) *cobra.Command {

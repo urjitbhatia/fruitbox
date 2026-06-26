@@ -18,21 +18,58 @@ type Fake struct {
 	mu    sync.Mutex
 	Calls []Call
 
-	// Responses maps an argument-substring match to a canned Result. The first
-	// matching entry (in insertion order) wins.
-	responses []fakeResponse
+	// responses are matched against the joined args; the first match wins.
+	responses []*fakeResponse
 }
 
 type fakeResponse struct {
-	match  string
-	result Result
-	err    error
+	match   string
+	results []Result
+	errs    []error
+	idx     int
 }
 
-// On registers a canned response for any Run whose joined args contain match.
+// next returns the response for the current invocation, advancing through a
+// registered sequence (the final entry repeats once exhausted).
+func (r *fakeResponse) next() (Result, error) {
+	i := r.idx
+	if i >= len(r.results) {
+		i = len(r.results) - 1
+	}
+	r.idx++
+	var err error
+	if i < len(r.errs) {
+		err = r.errs[i]
+	}
+	return r.results[i], err
+}
+
+// On registers a canned response for any call whose joined args contain match.
 func (f *Fake) On(match string, result Result, err error) *Fake {
-	f.responses = append(f.responses, fakeResponse{match: match, result: result, err: err})
+	f.responses = append(f.responses, &fakeResponse{
+		match:   match,
+		results: []Result{result},
+		errs:    []error{err},
+	})
 	return f
+}
+
+// OnSequence registers an ordered sequence of responses for matching calls.
+// Successive matches return successive results; the last result repeats
+// thereafter. Useful for simulating "unhealthy then healthy" transitions.
+func (f *Fake) OnSequence(match string, results ...Result) *Fake {
+	f.responses = append(f.responses, &fakeResponse{match: match, results: results})
+	return f
+}
+
+func (f *Fake) lookup(joined string) (Result, error, bool) {
+	for _, r := range f.responses {
+		if strings.Contains(joined, r.match) {
+			res, err := r.next()
+			return res, err, true
+		}
+	}
+	return Result{}, nil, false
 }
 
 // Run implements Runner, recording the call and returning any canned response.
@@ -40,11 +77,8 @@ func (f *Fake) Run(_ context.Context, args ...string) (Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.Calls = append(f.Calls, Call{Args: append([]string(nil), args...)})
-	joined := strings.Join(args, " ")
-	for _, r := range f.responses {
-		if strings.Contains(joined, r.match) {
-			return r.result, r.err
-		}
+	if res, err, ok := f.lookup(strings.Join(args, " ")); ok {
+		return res, err
 	}
 	return Result{}, nil
 }
@@ -54,11 +88,8 @@ func (f *Fake) RunInteractive(_ context.Context, args ...string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.Calls = append(f.Calls, Call{Args: append([]string(nil), args...), Interactive: true})
-	joined := strings.Join(args, " ")
-	for _, r := range f.responses {
-		if strings.Contains(joined, r.match) {
-			return r.err
-		}
+	if _, err, ok := f.lookup(strings.Join(args, " ")); ok {
+		return err
 	}
 	return nil
 }
@@ -73,4 +104,17 @@ func (f *Fake) CommandArgs() []string {
 		out[i] = strings.Join(c.Args, " ")
 	}
 	return out
+}
+
+// CountMatching returns how many recorded calls contain the given substring.
+func (f *Fake) CountMatching(substr string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, c := range f.Calls {
+		if strings.Contains(strings.Join(c.Args, " "), substr) {
+			n++
+		}
+	}
+	return n
 }
