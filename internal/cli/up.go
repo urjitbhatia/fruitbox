@@ -66,7 +66,12 @@ func parseScale(flags []string) (map[string]int, error) {
 }
 
 func newDownCommand(opts *globalOptions) *cobra.Command {
-	var removeVolumes bool
+	var (
+		removeVolumes bool
+		removeOrphans bool
+		rmi           string
+		timeout       int
+	)
 	cmd := &cobra.Command{
 		Use:   "down",
 		Short: "Stop and remove the project's containers, networks and (optionally) volumes",
@@ -76,10 +81,22 @@ func newDownCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			down := engine.DownOptions{
+				RemoveVolumes: removeVolumes,
+				RemoveOrphans: removeOrphans,
+				RemoveImages:  rmi,
+			}
+			if cmd.Flags().Changed("timeout") {
+				down.Timeout = &timeout
+			}
 			e := opts.engine(cmd.OutOrStdout())
-			return e.Down(cmd.Context(), proj, engine.DownOptions{RemoveVolumes: removeVolumes})
+			return e.Down(cmd.Context(), proj, down)
 		},
 	}
-	cmd.Flags().BoolVarP(&removeVolumes, "volumes", "v", false, "Also remove named volumes declared in the volumes section")
+	f := cmd.Flags()
+	f.BoolVarP(&removeVolumes, "volumes", "v", false, "Also remove named volumes declared in the volumes section")
+	f.BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
+	f.StringVar(&rmi, "rmi", "", `Remove images used by services ("local" or "all")`)
+	f.IntVarP(&timeout, "timeout", "t", 0, "Shutdown timeout in seconds")
 	return cmd
 }

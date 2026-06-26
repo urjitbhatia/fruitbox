@@ -22,7 +22,6 @@ var knownFlagGaps = map[string][]string{
 	"config":  {"environment", "lock-image-digests", "resolve-image-digests", "variables"},
 	"cp":      {"all", "archive", "follow-link"},
 	"create":  {"build", "force-recreate", "no-build", "no-recreate", "pull", "quiet-pull", "remove-orphans", "yes"},
-	"down":    {"remove-orphans", "rmi", "timeout"},
 	"events":  {"json", "since", "until"},
 	"exec":    {"detach", "index", "no-tty", "privileged"},
 	"images":  {"format"},

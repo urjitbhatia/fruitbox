@@ -78,15 +78,24 @@ func (e *Engine) Stop(ctx context.Context, p *types.Project, names []string) err
 // stopArgs builds the `container stop` arguments for a container, applying the
 // service's stop_signal (--signal) and stop_grace_period (--time).
 func (e *Engine) stopArgs(p *types.Project, r nameRef) []string {
+	return e.stopArgsTimeout(p, r, nil)
+}
+
+// stopArgsTimeout builds `container stop` args. When override is non-nil it
+// sets the grace period (--time), overriding the service's stop_grace_period
+// (used by `down -t`/`stop -t`).
+func (e *Engine) stopArgsTimeout(p *types.Project, r nameRef, override *int) []string {
 	args := []string{"stop"}
-	if svc, err := p.GetService(r.Service); err == nil {
-		if svc.StopSignal != "" {
-			args = append(args, "--signal", svc.StopSignal)
-		}
-		if svc.StopGracePeriod != nil {
-			secs := int(time.Duration(*svc.StopGracePeriod).Seconds())
-			args = append(args, "--time", fmt.Sprintf("%d", secs))
-		}
+	svc, err := p.GetService(r.Service)
+	if err == nil && svc.StopSignal != "" {
+		args = append(args, "--signal", svc.StopSignal)
+	}
+	switch {
+	case override != nil:
+		args = append(args, "--time", fmt.Sprintf("%d", *override))
+	case err == nil && svc.StopGracePeriod != nil:
+		secs := int(time.Duration(*svc.StopGracePeriod).Seconds())
+		args = append(args, "--time", fmt.Sprintf("%d", secs))
 	}
 	return append(args, r.Container)
 }

@@ -196,10 +196,17 @@ func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.S
 type DownOptions struct {
 	// RemoveVolumes also deletes the project's named volumes.
 	RemoveVolumes bool
+	// RemoveOrphans removes containers for services not in the compose file.
+	RemoveOrphans bool
+	// Timeout overrides each container's shutdown grace period (seconds).
+	Timeout *int
+	// RemoveImages removes service images: "all" (every image) or "local"
+	// (only images with no custom name, i.e. locally built). Empty = keep.
+	RemoveImages string
 }
 
 // Down stops and removes the project's service containers in reverse
-// dependency order, then removes its networks (and optionally volumes).
+// dependency order, then removes its networks (and optionally volumes/images).
 func (e *Engine) Down(ctx context.Context, p *types.Project, opts DownOptions) error {
 	order, err := DependencyOrder(p)
 	if err != nil {
@@ -219,9 +226,15 @@ func (e *Engine) Down(ctx context.Context, p *types.Project, opts DownOptions) e
 			}
 			e.logf("Stopping %s", cname)
 			// Best-effort: ignore errors for containers that don't exist.
-			_, _ = e.Runner.Run(ctx, e.stopArgs(p, nameRef{Service: svc.Name, Container: cname})...)
+			_, _ = e.Runner.Run(ctx, e.stopArgsTimeout(p, nameRef{Service: svc.Name, Container: cname}, opts.Timeout)...)
 			e.logf("Removing %s", cname)
 			_, _ = e.Runner.Run(ctx, "delete", cname)
+		}
+	}
+
+	if opts.RemoveOrphans {
+		if err := e.removeOrphans(ctx, p); err != nil {
+			return err
 		}
 	}
 
@@ -244,7 +257,38 @@ func (e *Engine) Down(ctx context.Context, p *types.Project, opts DownOptions) e
 			_, _ = e.Runner.Run(ctx, "volume", "delete", vol.Name)
 		}
 	}
+
+	if opts.RemoveImages != "" {
+		e.removeImages(ctx, p, opts.RemoveImages)
+	}
 	return nil
+}
+
+// removeImages deletes service images per the --rmi mode: "all" removes every
+// service image; "local" removes only images with no custom name (locally
+// built, i.e. services with a build section and no explicit image).
+func (e *Engine) removeImages(ctx context.Context, p *types.Project, mode string) {
+	seen := map[string]bool{}
+	for _, name := range p.ServiceNames() {
+		svc, err := p.GetService(name)
+		if err != nil {
+			continue
+		}
+		local := svc.Image == "" && svc.Build != nil
+		if mode == "local" && !local {
+			continue
+		}
+		image := svc.Image
+		if image == "" && svc.Build != nil {
+			image = translate.BuildImageTag(p.Name, svc)
+		}
+		if image == "" || seen[image] {
+			continue
+		}
+		seen[image] = true
+		e.logf("Removing image %s", image)
+		_, _ = e.Runner.Run(ctx, "image", "delete", image)
+	}
 }
 
 func (e *Engine) logf(format string, args ...any) {
