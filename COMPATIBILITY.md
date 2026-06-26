@@ -55,15 +55,19 @@ stop, top, unpause, up, version, wait, watch.
 Per-command flag gaps are enforced by `TestFlagParity` (the `knownFlagGaps`
 baseline) and can be regenerated with `scripts/compat-audit.sh`.
 
-**Progress: 138 → 108 recorded gaps.** Commands now at **full flag parity**:
-`config`* , `version`, `down`, `stop`, `restart`, `kill`, `images`, `scale`
-(*config minus digest-pinning/`--variables`, which need registry access).
-Substantially closed: `run` (18→6), `up` (25→21), `exec` (4→1), `logs` (7→5),
-`ps` (7→4), `events` (3→2).
+**Progress: 138 → 85 recorded gaps.** Commands now at **full flag parity**
+(13): `version`, `down`, `stop`, `restart`, `kill`, `images`, `scale`, `push`,
+`start`, `wait`, `rm`, plus `config`*. Substantially closed: `run` (18→6),
+`up` (25→21), `exec` (4→1), `pull` (5→1), `create` (8→5), `build` (13→10),
+`logs` (7→5), `ps` (7→4), `events` (3→2), `cp` (3→2), `ls` (3→2).
 
-Largest remaining gaps: `build` (13 — mostly BuildKit features like
-`--sbom`/`--provenance`/`--builder`/`--check`), `up` (21 — recreate semantics,
-foreground attach/log formatting), `create` (8), `pull` (5).
+(*config minus digest-pinning/`--variables`, which need registry access.)
+
+Largest remaining gaps: `up` (21 — recreate semantics, foreground attach/log
+formatting), `build` (10 — BuildKit features: `--sbom`/`--provenance`/
+`--builder`/`--check`/`--push`), `run` (6), `create` (5), `logs` (5). These are
+mostly features the Apple `container` runtime doesn't expose (recreate diffing,
+log multiplexing, BuildKit attestations) or that need registry access.
 
 ### Priority order for closing flag gaps
 
