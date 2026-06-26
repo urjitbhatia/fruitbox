@@ -87,6 +87,7 @@ func NewRootCommand() *cobra.Command {
 		newScaleCommand(opts),
 		newAttachCommand(opts),
 		newEventsCommand(opts),
+		newWatchCommand(opts),
 		newVersionCommand(),
 	)
 	return root

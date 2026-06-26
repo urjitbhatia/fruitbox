@@ -82,6 +82,22 @@ func newScaleCommand(opts *globalOptions) *cobra.Command {
 	return cmd
 }
 
+func newWatchCommand(opts *globalOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "watch",
+		Short: "Watch source files and sync/restart/rebuild services on change",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			proj, err := opts.load(cmd.Context())
+			if err != nil {
+				return err
+			}
+			return opts.engine(cmd.OutOrStdout()).Watch(cmd.Context(), proj, 0)
+		},
+	}
+	return cmd
+}
+
 func newEventsCommand(opts *globalOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "events",
