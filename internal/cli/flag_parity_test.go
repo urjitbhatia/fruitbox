@@ -28,7 +28,7 @@ var knownFlagGaps = map[string][]string{
 	"port":   {"index"},
 	"pull":   {"policy"},
 	"run":    {"quiet", "quiet-build", "quiet-pull", "use-aliases"},
-	"up":     {"abort-on-container-exit", "abort-on-container-failure", "always-recreate-deps", "attach", "attach-dependencies", "build", "exit-code-from", "menu", "no-attach", "no-color", "no-log-prefix", "quiet-build", "quiet-pull", "renew-anon-volumes", "timeout", "timestamps", "watch", "yes"},
+	"up":     {"abort-on-container-exit", "abort-on-container-failure", "always-recreate-deps", "attach", "attach-dependencies", "build", "exit-code-from", "menu", "no-attach", "no-color", "no-log-prefix", "quiet-build", "quiet-pull", "renew-anon-volumes", "timestamps", "watch", "yes"},
 	"watch":  {"prune"},
 }
 

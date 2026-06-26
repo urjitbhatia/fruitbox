@@ -21,6 +21,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		forceRecreate bool
 		noRecreate    bool
 		noDeps        bool
+		timeout       int
 		scaleFlags    []string
 	)
 	cmd := &cobra.Command{
@@ -35,8 +36,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			e := opts.engine(cmd.OutOrStdout())
-			return e.Up(cmd.Context(), proj, engine.UpOptions{
+			up := engine.UpOptions{
 				Detach:        detach,
 				NoBuild:       noBuild,
 				RemoveOrphans: removeOrphans,
@@ -49,7 +49,11 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				NoRecreate:    noRecreate,
 				Services:      services,
 				NoDeps:        noDeps,
-			})
+			}
+			if cmd.Flags().Changed("timeout") {
+				up.Timeout = &timeout
+			}
+			return opts.engine(cmd.OutOrStdout()).Up(cmd.Context(), proj, up)
 		},
 	}
 	f := cmd.Flags()
@@ -63,6 +67,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&forceRecreate, "force-recreate", false, "Recreate containers even if their configuration hasn't changed")
 	f.BoolVar(&noRecreate, "no-recreate", false, "If containers already exist, don't recreate them")
 	f.BoolVar(&noDeps, "no-deps", false, "Don't start linked services")
+	f.IntVarP(&timeout, "timeout", "t", 0, "Shutdown timeout in seconds when recreating")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }

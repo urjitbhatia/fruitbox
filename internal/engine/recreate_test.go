@@ -110,3 +110,18 @@ func TestRunArgsCarryConfigHashOnCreate(t *testing.T) {
 		t.Errorf("fresh containers should be stamped with a config-hash label, calls: %v", fake.CommandArgs())
 	}
 }
+
+func TestUpRecreateTimeout(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	fake.On("inspect basic-web-1", runner.Result{Stdout: inspectWithHash("stale")}, nil)
+	fake.On("inspect basic-db-1", runner.Result{Stdout: inspectWithHash("stale")}, nil)
+	e := New(fake, io.Discard)
+	nine := 9
+	if err := e.Up(context.Background(), proj, UpOptions{Detach: true, Timeout: &nine}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "stop --time 9 basic-web-1") == -1 {
+		t.Errorf("up --timeout should set recreate stop --time, calls: %v", fake.CommandArgs())
+	}
+}

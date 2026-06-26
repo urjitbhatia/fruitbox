@@ -91,6 +91,8 @@ type UpOptions struct {
 	Services []string
 	// NoDeps starts only the selected services, not their dependencies.
 	NoDeps bool
+	// Timeout overrides the stop grace period (seconds) when recreating.
+	Timeout *int
 }
 
 // selectedServices returns the set of service names Up should act on, or nil
@@ -249,7 +251,7 @@ func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.S
 			continue
 		case decisionRecreate:
 			e.logf("Recreating %s", cname)
-			_, _ = e.Runner.Run(ctx, e.stopArgs(p, nameRef{Service: svc.Name, Container: cname})...)
+			_, _ = e.Runner.Run(ctx, e.stopArgsTimeout(p, nameRef{Service: svc.Name, Container: cname}, opts.Timeout)...)
 			_, _ = e.Runner.Run(ctx, "delete", cname)
 		case decisionCreate:
 			// Nothing to remove; fall through to a fresh run.
