@@ -56,3 +56,20 @@ func TestKillRemoveOrphans(t *testing.T) {
 		t.Errorf("kill --remove-orphans should remove orphan, calls: %v", calls)
 	}
 }
+
+func TestStartWaitWaitsForHealth(t *testing.T) {
+	proj := load(t, "health")
+	fake := &runner.Fake{}
+	fake.On("exec health-db-1 pg_isready", runner.Result{ExitCode: 0}, nil)
+	e := newTestEngine(fake)
+	if err := e.Start(context.Background(), proj, nil, StartOptions{Wait: true}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	calls := fake.CommandArgs()
+	if firstMatch(calls, "start health-db-1") == -1 {
+		t.Errorf("start should start containers, calls: %v", calls)
+	}
+	if fake.CountMatching("exec health-db-1 pg_isready") == 0 {
+		t.Errorf("--wait should probe healthchecks, calls: %v", calls)
+	}
+}

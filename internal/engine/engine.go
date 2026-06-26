@@ -149,25 +149,8 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 	// --wait: block until every service with a healthcheck reports healthy,
 	// optionally bounded by --wait-timeout.
 	if opts.Wait {
-		waitCtx := ctx
-		if opts.WaitTimeout > 0 {
-			var cancel context.CancelFunc
-			waitCtx, cancel = context.WithTimeout(ctx, time.Duration(opts.WaitTimeout)*time.Second)
-			defer cancel()
-		}
-		for _, name := range order {
-			svc, err := p.GetService(name)
-			if err != nil {
-				return err
-			}
-			if svc.HealthCheck == nil || svc.HealthCheck.Disable {
-				continue
-			}
-			cname := containerName(p, svc, 1)
-			e.logf("Waiting for %s to be healthy", cname)
-			if err := e.waitHealthy(waitCtx, cname, svc.HealthCheck); err != nil {
-				return fmt.Errorf("service %q did not become healthy: %w", name, err)
-			}
+		if err := e.waitForHealthy(ctx, p, order, opts.WaitTimeout); err != nil {
+			return err
 		}
 	}
 

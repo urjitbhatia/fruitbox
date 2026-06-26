@@ -20,7 +20,11 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newStartCommand(opts *globalOptions) *cobra.Command {
-	return &cobra.Command{
+	var (
+		wait        bool
+		waitTimeout int
+	)
+	cmd := &cobra.Command{
 		Use:   "start [SERVICE...]",
 		Short: "Start existing containers for services",
 		RunE: func(cmd *cobra.Command, services []string) error {
@@ -28,9 +32,15 @@ func newStartCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Start(cmd.Context(), proj, services)
+			return opts.engine(cmd.OutOrStdout()).Start(cmd.Context(), proj, services, engine.StartOptions{
+				Wait:        wait,
+				WaitTimeout: waitTimeout,
+			})
 		},
 	}
+	cmd.Flags().BoolVar(&wait, "wait", false, "Wait for services to be running|healthy")
+	cmd.Flags().IntVar(&waitTimeout, "wait-timeout", 0, "Max seconds to wait for the project to be running|healthy")
+	return cmd
 }
 
 func newStopCommand(opts *globalOptions) *cobra.Command {

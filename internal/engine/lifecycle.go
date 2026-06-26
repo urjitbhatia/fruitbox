@@ -45,8 +45,14 @@ type nameRef struct {
 	Container string
 }
 
+// StartOptions controls Start.
+type StartOptions struct {
+	Wait        bool // block until healthcheck'd services are healthy
+	WaitTimeout int  // bound for Wait (seconds); 0 = unbounded
+}
+
 // Start starts existing (stopped) containers for the named services.
-func (e *Engine) Start(ctx context.Context, p *types.Project, names []string) error {
+func (e *Engine) Start(ctx context.Context, p *types.Project, names []string, opts StartOptions) error {
 	refs, err := e.containerNames(p, names)
 	if err != nil {
 		return err
@@ -55,6 +61,38 @@ func (e *Engine) Start(ctx context.Context, p *types.Project, names []string) er
 		e.logf("Starting %s", r.Container)
 		if _, err := e.Runner.Run(ctx, "start", r.Container); err != nil {
 			return err
+		}
+	}
+	if opts.Wait {
+		want := names
+		if len(want) == 0 {
+			want = p.ServiceNames()
+		}
+		return e.waitForHealthy(ctx, p, want, opts.WaitTimeout)
+	}
+	return nil
+}
+
+// waitForHealthy blocks until each named service that declares a healthcheck
+// reports healthy, optionally bounded by timeoutSecs.
+func (e *Engine) waitForHealthy(ctx context.Context, p *types.Project, names []string, timeoutSecs int) error {
+	if timeoutSecs > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSecs)*time.Second)
+		defer cancel()
+	}
+	for _, name := range names {
+		svc, err := p.GetService(name)
+		if err != nil {
+			return err
+		}
+		if svc.HealthCheck == nil || svc.HealthCheck.Disable {
+			continue
+		}
+		cname := containerName(p, svc, 1)
+		e.logf("Waiting for %s to be healthy", cname)
+		if err := e.waitHealthy(ctx, cname, svc.HealthCheck); err != nil {
+			return fmt.Errorf("service %q did not become healthy: %w", name, err)
 		}
 	}
 	return nil
@@ -107,7 +145,7 @@ func (e *Engine) Restart(ctx context.Context, p *types.Project, names []string, 
 	if err := e.Stop(ctx, p, names, timeout); err != nil {
 		return err
 	}
-	return e.Start(ctx, p, names)
+	return e.Start(ctx, p, names, StartOptions{})
 }
 
 // Kill sends a signal to the named services' containers (default SIGKILL),
