@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -164,5 +165,40 @@ func TestRunOverrides(t *testing.T) {
 	// entrypoint is set via --entrypoint; the image+command tail is unchanged.
 	if !strings.HasSuffix(joined, "nginx:1.27 -c id") {
 		t.Errorf("image+command tail wrong: %s", joined)
+	}
+}
+
+func TestRunPullAlways(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.RunOneOff(context.Background(), proj, "web", RunOneOffOptions{NoDeps: true, Remove: true, Pull: "always"}); err != nil {
+		t.Fatalf("RunOneOff: %v", err)
+	}
+	calls := fake.CommandArgs()
+	posPull := firstMatch(calls, "image pull nginx:1.27")
+	posRun := firstMatch(calls, "--name basic-web-run")
+	if posPull == -1 || posPull > posRun {
+		t.Errorf("--pull always should pull before run, calls: %v", calls)
+	}
+}
+
+func TestRunEnvFromFile(t *testing.T) {
+	dir := t.TempDir()
+	envFile := dir + "/app.env"
+	if err := os.WriteFile(envFile, []byte("# comment\nFOO=bar\nBAZ=qux\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.RunOneOff(context.Background(), proj, "web", RunOneOffOptions{
+		NoDeps: true, Remove: true, EnvFromFile: []string{envFile},
+	}); err != nil {
+		t.Fatalf("RunOneOff: %v", err)
+	}
+	joined := strings.Join(fake.CommandArgs(), " ")
+	if !strings.Contains(joined, "--env FOO=bar") || !strings.Contains(joined, "--env BAZ=qux") {
+		t.Errorf("env-from-file entries missing: %s", joined)
 	}
 }

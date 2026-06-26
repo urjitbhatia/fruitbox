@@ -26,6 +26,8 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 		servicePorts  bool
 		build         bool
 		removeOrphans bool
+		pull          string
+		envFromFile   []string
 	)
 	cmd := &cobra.Command{
 		Use:   "run [flags] SERVICE [COMMAND] [ARGS...]",
@@ -63,6 +65,8 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 				ServicePorts:  servicePorts,
 				Build:         build,
 				RemoveOrphans: removeOrphans,
+				Pull:          pull,
+				EnvFromFile:   envFromFile,
 			})
 		},
 	}
@@ -87,5 +91,7 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&servicePorts, "service-ports", false, "Run with the service's ports enabled and mapped to the host")
 	f.BoolVar(&build, "build", false, "Build image before starting the container")
 	f.BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
+	f.StringVar(&pull, "pull", "policy", `Pull image before running ("always"|"missing"|"never")`)
+	f.StringArrayVar(&envFromFile, "env-from-file", nil, "Set environment variables from file")
 	return cmd
 }

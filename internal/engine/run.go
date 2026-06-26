@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -40,6 +41,8 @@ type RunOneOffOptions struct {
 	ServicePorts  bool     // --service-ports: map the service's declared ports
 	Build         bool     // --build: build image before running
 	RemoveOrphans bool     // --remove-orphans
+	Pull          string   // --pull: "always" pulls the image before running
+	EnvFromFile   []string // --env-from-file: files of KEY=VALUE env entries
 }
 
 // RunOneOff starts dependencies (unless NoDeps) and then runs a single one-off
@@ -55,6 +58,11 @@ func (e *Engine) RunOneOff(ctx context.Context, p *types.Project, service string
 			return err
 		}
 	}
+	if opts.Pull == "always" {
+		if err := e.Pull(ctx, p, []string{service}, PullOptions{}); err != nil {
+			return err
+		}
+	}
 	if !opts.NoDeps {
 		if err := e.startDependencies(ctx, p, svc); err != nil {
 			return err
@@ -64,6 +72,15 @@ func (e *Engine) RunOneOff(ctx context.Context, p *types.Project, service string
 		if err := e.removeOrphans(ctx, p); err != nil {
 			return err
 		}
+	}
+
+	// Merge --env-from-file entries ahead of explicit --env (which wins).
+	if len(opts.EnvFromFile) > 0 {
+		fileEnv, err := readEnvFiles(opts.EnvFromFile)
+		if err != nil {
+			return err
+		}
+		opts.Env = append(fileEnv, opts.Env...)
 	}
 
 	runSvc := applyRunOverrides(svc, opts)
@@ -223,4 +240,24 @@ func transitiveDeps(p *types.Project, svc types.ServiceConfig) map[string]bool {
 
 func sanitizeName(s string) string {
 	return translate.ContainerNameSegment(s)
+}
+
+// readEnvFiles reads KEY=VALUE lines from the given files (ignoring blanks and
+// # comments), returning them as "KEY=VALUE" strings in file order.
+func readEnvFiles(files []string) ([]string, error) {
+	var out []string
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			return nil, fmt.Errorf("read env file %s: %w", f, err)
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			out = append(out, line)
+		}
+	}
+	return out, nil
 }
