@@ -66,7 +66,14 @@ func NewRootCommand() *cobra.Command {
 		SilenceErrors: true,
 	}
 
-	pf := root.PersistentFlags()
+	// Project-selection flags are parsed BEFORE the subcommand (e.g.
+	// `fruitbox -f x.yml -p demo up`), matching docker compose. They are
+	// registered as root-local flags (not persistent) with TraverseChildren so
+	// they are consumed during traversal and never merged into subcommands.
+	// This is what lets subcommands reuse `-f` (logs --follow, rm --force)
+	// without a shorthand collision panic against the global `-f/--file`.
+	root.TraverseChildren = true
+	pf := root.Flags()
 	pf.StringArrayVarP(&opts.files, "file", "f", nil, "Compose configuration file(s) (repeatable)")
 	pf.StringVarP(&opts.projectName, "project-name", "p", "", "Project name")
 	pf.StringVar(&opts.projectDir, "project-directory", "", "Working directory for the project")
