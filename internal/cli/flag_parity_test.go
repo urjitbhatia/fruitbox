@@ -28,7 +28,7 @@ var knownFlagGaps = map[string][]string{
 	"logs":   {"no-color", "no-log-prefix", "since", "timestamps", "until"},
 	"ls":     {"all", "filter", "format"},
 	"port":   {"index"},
-	"ps":     {"all", "filter", "format", "no-trunc", "orphans", "services", "status"},
+	"ps":     {"all", "filter", "orphans", "status"},
 	"pull":   {"ignore-buildable", "ignore-pull-failures", "include-deps", "policy", "quiet"},
 	"push":   {"ignore-push-failures", "include-deps", "quiet"},
 	"rm":     {"volumes"},
