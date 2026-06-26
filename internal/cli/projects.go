@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -11,8 +12,10 @@ import (
 
 func newLsCommand(opts *globalOptions) *cobra.Command {
 	var (
-		quiet  bool
-		format string
+		quiet   bool
+		format  string
+		all     bool
+		filters []string
 	)
 	cmd := &cobra.Command{
 		Use:   "ls",
@@ -22,6 +25,10 @@ func newLsCommand(opts *globalOptions) *cobra.Command {
 			// `ls` is a runtime-wide query and needs no compose file.
 			e := opts.engine(cmd.OutOrStdout())
 			projects, err := e.ListProjects(cmd.Context())
+			if err != nil {
+				return err
+			}
+			projects, err = filterProjects(projects, all, filters)
 			if err != nil {
 				return err
 			}
@@ -47,7 +54,36 @@ func newLsCommand(opts *globalOptions) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Only display project names")
 	cmd.Flags().StringVar(&format, "format", "table", "Format output: table or json")
+	cmd.Flags().BoolVarP(&all, "all", "a", false, "Show all stopped Compose projects")
+	cmd.Flags().StringArrayVar(&filters, "filter", nil, "Filter output based on conditions provided (name=)")
 	return cmd
+}
+
+// filterProjects applies --all (default shows only projects with running
+// containers) and --filter name= to the project list.
+func filterProjects(in []engine.ProjectSummary, all bool, filters []string) ([]engine.ProjectSummary, error) {
+	name := ""
+	for _, f := range filters {
+		k, v, ok := strings.Cut(f, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid --filter %q, want key=value", f)
+		}
+		if k != "name" {
+			return nil, fmt.Errorf("unsupported --filter key %q (want name)", k)
+		}
+		name = v
+	}
+	var out []engine.ProjectSummary
+	for _, p := range in {
+		if !all && p.RunningCount == 0 {
+			continue
+		}
+		if name != "" && !strings.Contains(p.Name, name) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out, nil
 }
 
 func newWaitCommand(opts *globalOptions) *cobra.Command {

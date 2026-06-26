@@ -14,6 +14,7 @@ import (
 type ProjectSummary struct {
 	Name           string
 	ContainerCount int
+	RunningCount   int
 }
 
 // ListProjects scans all containers and groups them by compose project label,
@@ -24,11 +25,15 @@ func (e *Engine) ListProjects(ctx context.Context) ([]ProjectSummary, error) {
 		return nil, err
 	}
 	counts := map[string]int{}
+	running := map[string]int{}
 	for _, c := range parseContainerList(res.Stdout) {
 		if c.project == "" {
 			continue
 		}
 		counts[c.project]++
+		if c.status == "running" {
+			running[c.project]++
+		}
 	}
 	names := make([]string, 0, len(counts))
 	for n := range counts {
@@ -37,7 +42,7 @@ func (e *Engine) ListProjects(ctx context.Context) ([]ProjectSummary, error) {
 	sort.Strings(names)
 	out := make([]ProjectSummary, 0, len(names))
 	for _, n := range names {
-		out = append(out, ProjectSummary{Name: n, ContainerCount: counts[n]})
+		out = append(out, ProjectSummary{Name: n, ContainerCount: counts[n], RunningCount: running[n]})
 	}
 	return out, nil
 }
