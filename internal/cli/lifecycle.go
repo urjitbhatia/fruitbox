@@ -123,6 +123,9 @@ func newExecCommand(opts *globalOptions) *cobra.Command {
 	var (
 		interactive bool
 		tty         bool
+		noTTY       bool
+		detach      bool
+		index       int
 		user        string
 		workdir     string
 		env         []string
@@ -139,7 +142,9 @@ func newExecCommand(opts *globalOptions) *cobra.Command {
 			}
 			return opts.engine(cmd.OutOrStdout()).Exec(cmd.Context(), proj, args[0], args[1:], engine.ExecOptions{
 				Interactive: interactive,
-				TTY:         tty,
+				TTY:         tty && !noTTY,
+				Detach:      detach,
+				Index:       index,
 				User:        user,
 				WorkingDir:  workdir,
 				Env:         env,
@@ -149,6 +154,9 @@ func newExecCommand(opts *globalOptions) *cobra.Command {
 	f := cmd.Flags()
 	f.BoolVarP(&interactive, "interactive", "i", true, "Keep STDIN open")
 	f.BoolVarP(&tty, "tty", "t", true, "Allocate a TTY")
+	f.BoolVarP(&noTTY, "no-tty", "T", false, "Disable pseudo-TTY allocation")
+	f.BoolVarP(&detach, "detach", "d", false, "Run the command in the background")
+	f.IntVar(&index, "index", 0, "Index of the container replica")
 	f.StringVarP(&user, "user", "u", "", "Run as the given user")
 	f.StringVarP(&workdir, "workdir", "w", "", "Working directory inside the container")
 	f.StringArrayVarP(&env, "env", "e", nil, "Set environment variables")

@@ -23,7 +23,7 @@ var knownFlagGaps = map[string][]string{
 	"cp":     {"all", "archive", "follow-link"},
 	"create": {"build", "force-recreate", "no-build", "no-recreate", "pull", "quiet-pull", "remove-orphans", "yes"},
 	"events": {"json", "since", "until"},
-	"exec":   {"detach", "index", "no-tty", "privileged"},
+	"exec":   {"privileged"},
 	"images": {"format"},
 	"logs":   {"no-color", "no-log-prefix", "since", "timestamps", "until"},
 	"ls":     {"all", "filter", "format"},

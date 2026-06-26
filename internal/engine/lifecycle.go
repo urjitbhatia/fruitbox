@@ -159,18 +159,25 @@ func (e *Engine) Pull(ctx context.Context, p *types.Project, names []string) err
 	return nil
 }
 
-// Exec runs a command in the first replica of a service's container,
-// interactively wired to the process stdio.
+// Exec runs a command in a replica of a service's container, interactively
+// wired to the process stdio (or detached when opts.Detach is set).
 func (e *Engine) Exec(ctx context.Context, p *types.Project, service string, command []string, opts ExecOptions) error {
 	svc, err := p.GetService(service)
 	if err != nil {
 		return err
 	}
+	index := opts.Index
+	if index <= 0 {
+		index = 1
+	}
 	cname := svc.ContainerName
 	if cname == "" {
-		cname = translate.ContainerName(p.Name, svc.Name, 1)
+		cname = translate.ContainerName(p.Name, svc.Name, index)
 	}
 	args := []string{"exec"}
+	if opts.Detach {
+		args = append(args, "--detach")
+	}
 	if opts.Interactive {
 		args = append(args, "--interactive")
 	}
@@ -188,6 +195,10 @@ func (e *Engine) Exec(ctx context.Context, p *types.Project, service string, com
 	}
 	args = append(args, cname)
 	args = append(args, command...)
+	if opts.Detach {
+		_, err := e.Runner.Run(ctx, args...)
+		return err
+	}
 	return e.Runner.RunInteractive(ctx, args...)
 }
 
@@ -195,6 +206,8 @@ func (e *Engine) Exec(ctx context.Context, p *types.Project, service string, com
 type ExecOptions struct {
 	Interactive bool
 	TTY         bool
+	Detach      bool
+	Index       int
 	User        string
 	WorkingDir  string
 	Env         []string
