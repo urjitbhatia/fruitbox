@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/urjitbhatia/fruitbox/internal/translate"
@@ -59,7 +60,8 @@ func (e *Engine) Start(ctx context.Context, p *types.Project, names []string) er
 	return nil
 }
 
-// Stop stops running containers for the named services without removing them.
+// Stop stops running containers for the named services without removing them,
+// honoring each service's stop_signal and stop_grace_period.
 func (e *Engine) Stop(ctx context.Context, p *types.Project, names []string) error {
 	refs, err := e.containerNames(p, names)
 	if err != nil {
@@ -67,10 +69,26 @@ func (e *Engine) Stop(ctx context.Context, p *types.Project, names []string) err
 	}
 	// Reverse order for a graceful shutdown.
 	for i := len(refs) - 1; i >= 0; i-- {
+		_, _ = e.Runner.Run(ctx, e.stopArgs(p, refs[i])...)
 		e.logf("Stopping %s", refs[i].Container)
-		_, _ = e.Runner.Run(ctx, "stop", refs[i].Container)
 	}
 	return nil
+}
+
+// stopArgs builds the `container stop` arguments for a container, applying the
+// service's stop_signal (--signal) and stop_grace_period (--time).
+func (e *Engine) stopArgs(p *types.Project, r nameRef) []string {
+	args := []string{"stop"}
+	if svc, err := p.GetService(r.Service); err == nil {
+		if svc.StopSignal != "" {
+			args = append(args, "--signal", svc.StopSignal)
+		}
+		if svc.StopGracePeriod != nil {
+			secs := int(time.Duration(*svc.StopGracePeriod).Seconds())
+			args = append(args, "--time", fmt.Sprintf("%d", secs))
+		}
+	}
+	return append(args, r.Container)
 }
 
 // Restart restarts containers for the named services (stop then start).

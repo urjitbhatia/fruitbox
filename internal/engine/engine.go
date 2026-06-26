@@ -204,7 +204,7 @@ func (e *Engine) Down(ctx context.Context, p *types.Project, opts DownOptions) e
 			}
 			e.logf("Stopping %s", cname)
 			// Best-effort: ignore errors for containers that don't exist.
-			_, _ = e.Runner.Run(ctx, "stop", cname)
+			_, _ = e.Runner.Run(ctx, e.stopArgs(p, nameRef{Service: svc.Name, Container: cname})...)
 			e.logf("Removing %s", cname)
 			_, _ = e.Runner.Run(ctx, "delete", cname)
 		}

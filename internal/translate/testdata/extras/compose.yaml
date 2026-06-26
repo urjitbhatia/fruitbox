@@ -1,0 +1,12 @@
+services:
+  app:
+    image: myapp:latest
+    platform: linux/arm64
+    runtime: runc
+    stop_signal: SIGINT
+    stop_grace_period: 25s
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 4096
+      nproc: 512

@@ -107,6 +107,17 @@ func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) (
 	if svc.ShmSize > 0 {
 		args = append(args, "--shm-size", strconv.FormatInt(int64(svc.ShmSize), 10))
 	}
+	if svc.Platform != "" {
+		args = append(args, "--platform", svc.Platform)
+	}
+	if svc.Runtime != "" {
+		args = append(args, "--runtime", svc.Runtime)
+	}
+
+	// Ulimits (sorted by name for determinism).
+	for _, name := range sortedKeys(svc.Ulimits) {
+		args = append(args, "--ulimit", formatUlimit(name, svc.Ulimits[name]))
+	}
 
 	// entrypoint: container's --entrypoint takes a single executable; any
 	// extra elements become leading command arguments (matching how compose
@@ -269,6 +280,17 @@ func formatVolume(p *composeProject, vol types.ServiceVolumeConfig) (flag, value
 	default:
 		return "", "", fmt.Errorf("unsupported volume type %q on mount %q", vol.Type, vol.Target)
 	}
+}
+
+// formatUlimit renders a ulimit as "name=value" or "name=soft:hard".
+func formatUlimit(name string, u *types.UlimitsConfig) string {
+	if u == nil {
+		return name
+	}
+	if u.Single != 0 {
+		return name + "=" + strconv.Itoa(u.Single)
+	}
+	return name + "=" + strconv.Itoa(u.Soft) + ":" + strconv.Itoa(u.Hard)
 }
 
 // sortedKeys returns the keys of a string-keyed map in sorted order.
