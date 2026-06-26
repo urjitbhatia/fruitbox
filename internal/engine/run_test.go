@@ -105,3 +105,64 @@ func TestRemoveOrphans(t *testing.T) {
 		t.Errorf("other project's container must NOT be deleted")
 	}
 }
+
+func TestRunServicePortsDroppedByDefault(t *testing.T) {
+	proj := load(t, "basic") // web publishes 8080:80
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.RunOneOff(context.Background(), proj, "web", RunOneOffOptions{NoDeps: true, Remove: true}); err != nil {
+		t.Fatalf("RunOneOff: %v", err)
+	}
+	if strings.Contains(strings.Join(fake.CommandArgs(), " "), "--publish") {
+		t.Errorf("run must NOT publish service ports by default: %v", fake.CommandArgs())
+	}
+}
+
+func TestRunServicePortsFlagKeepsPorts(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.RunOneOff(context.Background(), proj, "web", RunOneOffOptions{NoDeps: true, Remove: true, ServicePorts: true}); err != nil {
+		t.Fatalf("RunOneOff: %v", err)
+	}
+	if !strings.Contains(strings.Join(fake.CommandArgs(), " "), "--publish 8080:80") {
+		t.Errorf("--service-ports should map declared ports: %v", fake.CommandArgs())
+	}
+}
+
+func TestRunOverrides(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	err := e.RunOneOff(context.Background(), proj, "web", RunOneOffOptions{
+		NoDeps:        true,
+		Remove:        true,
+		EntrypointSet: true,
+		Entrypoint:    "/bin/sh",
+		User:          "1000:1000",
+		WorkDir:       "/work",
+		Labels:        []string{"role=debug"},
+		Publish:       []string{"9090:80"},
+		CapAdd:        []string{"NET_ADMIN"},
+		Interactive:   true,
+		TTY:           true,
+		Command:       []string{"-c", "id"},
+	})
+	if err != nil {
+		t.Fatalf("RunOneOff: %v", err)
+	}
+	joined := strings.Join(fake.CommandArgs(), " ")
+	for _, want := range []string{
+		"--entrypoint /bin/sh", "--user 1000:1000", "--workdir /work",
+		"--label role=debug", "--publish 9090:80", "--cap-add NET_ADMIN",
+		"--interactive", "--tty",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("run override missing %q in: %s", want, joined)
+		}
+	}
+	// entrypoint is set via --entrypoint; the image+command tail is unchanged.
+	if !strings.HasSuffix(joined, "nginx:1.27 -c id") {
+		t.Errorf("image+command tail wrong: %s", joined)
+	}
+}

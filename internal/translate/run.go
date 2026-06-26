@@ -53,6 +53,11 @@ type RunOptions struct {
 	// engine to bind-mount generated files such as /etc/hosts and /etc/hostname
 	// that the runtime cannot configure via flags).
 	ExtraVolumes []string
+	// NameOverride sets an explicit container name (used by one-off `run`).
+	NameOverride string
+	// Interactive/TTY wire the container to the terminal (one-off `run`/`exec`).
+	Interactive bool
+	TTY         bool
 }
 
 // BuildRunArgs converts a resolved compose service into the argument vector for
@@ -74,7 +79,10 @@ func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) (
 	}
 	args := []string{verb}
 
-	name := svc.ContainerName
+	name := opts.NameOverride
+	if name == "" {
+		name = svc.ContainerName
+	}
 	if name == "" {
 		name = ContainerName(p.Name, svc.Name, opts.Number)
 	}
@@ -85,6 +93,12 @@ func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) (
 	}
 	if opts.Remove {
 		args = append(args, "--rm")
+	}
+	if opts.Interactive {
+		args = append(args, "--interactive")
+	}
+	if opts.TTY {
+		args = append(args, "--tty")
 	}
 
 	// Resource limits.

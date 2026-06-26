@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/urjitbhatia/fruitbox/internal/translate"
@@ -25,6 +26,20 @@ type RunOneOffOptions struct {
 	TTY         bool
 	// Env are additional environment variables (KEY=VALUE) for this run.
 	Env []string
+
+	// Override flags mirroring `docker compose run`.
+	Entrypoint    string   // --entrypoint
+	EntrypointSet bool     // whether --entrypoint was provided (allows clearing)
+	User          string   // --user
+	WorkDir       string   // --workdir
+	Labels        []string // --label KEY=VALUE
+	Volumes       []string // --volume specs
+	Publish       []string // --publish specs
+	CapAdd        []string // --cap-add
+	CapDrop       []string // --cap-drop
+	ServicePorts  bool     // --service-ports: map the service's declared ports
+	Build         bool     // --build: build image before running
+	RemoveOrphans bool     // --remove-orphans
 }
 
 // RunOneOff starts dependencies (unless NoDeps) and then runs a single one-off
@@ -35,25 +50,43 @@ func (e *Engine) RunOneOff(ctx context.Context, p *types.Project, service string
 		return err
 	}
 
+	if opts.Build {
+		if err := e.buildService(ctx, p, svc); err != nil {
+			return err
+		}
+	}
 	if !opts.NoDeps {
 		if err := e.startDependencies(ctx, p, svc); err != nil {
 			return err
 		}
 	}
-
-	runOpts := translate.RunOptions{
-		Number: 1,
-		Detach: opts.Detach,
-		Remove: opts.Remove,
-		Oneoff: true,
+	if opts.RemoveOrphans {
+		if err := e.removeOrphans(ctx, p); err != nil {
+			return err
+		}
 	}
-	args, err := translate.BuildRunArgs(p, svc, runOpts)
+
+	runSvc := applyRunOverrides(svc, opts)
+
+	name := opts.Name
+	if name == "" {
+		name = fmt.Sprintf("%s-%s-run", sanitizeName(p.Name), sanitizeName(svc.Name))
+	}
+	args, err := translate.BuildRunArgs(p, runSvc, translate.RunOptions{
+		Number:       1,
+		Detach:       opts.Detach,
+		Remove:       opts.Remove,
+		Oneoff:       true,
+		NameOverride: name,
+		Interactive:  opts.Interactive,
+		TTY:          opts.TTY,
+		ExtraVolumes: opts.Volumes,
+	})
 	if err != nil {
 		return err
 	}
-	args = applyOneOffOverrides(args, svc, p, opts)
 
-	for _, warning := range translate.UnsupportedWarnings(svc) {
+	for _, warning := range translate.UnsupportedWarnings(runSvc) {
 		e.logf("WARNING: %s: %s", svc.Name, warning)
 	}
 
@@ -62,6 +95,74 @@ func (e *Engine) RunOneOff(ctx context.Context, p *types.Project, service string
 		return err
 	}
 	return e.Runner.RunInteractive(ctx, args...)
+}
+
+// applyRunOverrides returns a copy of svc with `docker compose run` overrides
+// applied: ports are dropped unless --service-ports, the command/entrypoint may
+// be replaced, and user/workdir/labels/caps/publish/env are merged.
+func applyRunOverrides(svc types.ServiceConfig, opts RunOneOffOptions) types.ServiceConfig {
+	out := svc // value copy; we reassign slices/maps below rather than mutating
+
+	// By default `run` does NOT publish the service's declared ports.
+	if !opts.ServicePorts {
+		out.Ports = nil
+	}
+	for _, spec := range opts.Publish {
+		if ports, err := types.ParsePortConfig(spec); err == nil {
+			out.Ports = append(append([]types.ServicePortConfig(nil), out.Ports...), ports...)
+		}
+	}
+
+	if len(opts.Command) > 0 {
+		out.Command = opts.Command
+	}
+	if opts.EntrypointSet {
+		if opts.Entrypoint == "" {
+			out.Entrypoint = nil
+		} else {
+			out.Entrypoint = types.ShellCommand{opts.Entrypoint}
+		}
+	}
+	if opts.User != "" {
+		out.User = opts.User
+	}
+	if opts.WorkDir != "" {
+		out.WorkingDir = opts.WorkDir
+	}
+	if len(opts.CapAdd) > 0 {
+		out.CapAdd = append(append([]string(nil), out.CapAdd...), opts.CapAdd...)
+	}
+	if len(opts.CapDrop) > 0 {
+		out.CapDrop = append(append([]string(nil), out.CapDrop...), opts.CapDrop...)
+	}
+	if len(opts.Labels) > 0 {
+		merged := types.Labels{}
+		for k, v := range out.Labels {
+			merged[k] = v
+		}
+		for _, l := range opts.Labels {
+			k, v, _ := strings.Cut(l, "=")
+			merged[k] = v
+		}
+		out.Labels = merged
+	}
+	if len(opts.Env) > 0 {
+		merged := types.MappingWithEquals{}
+		for k, v := range out.Environment {
+			merged[k] = v
+		}
+		for _, e := range opts.Env {
+			k, v, ok := strings.Cut(e, "=")
+			if ok {
+				vv := v
+				merged[k] = &vv
+			} else {
+				merged[k] = nil
+			}
+		}
+		out.Environment = merged
+	}
+	return out
 }
 
 // startDependencies brings up (and waits on) all of a service's dependencies in
@@ -118,69 +219,6 @@ func transitiveDeps(p *types.Project, svc types.ServiceConfig) map[string]bool {
 	}
 	visit(svc)
 	return seen
-}
-
-// applyOneOffOverrides adjusts a generated run arg vector for one-off semantics:
-// a unique container name, interactive/tty flags, extra env, and a command
-// override that replaces the service's default command.
-func applyOneOffOverrides(args []string, svc types.ServiceConfig, p *types.Project, opts RunOneOffOptions) []string {
-	// Replace the generated --name with a one-off name.
-	name := opts.Name
-	if name == "" {
-		name = fmt.Sprintf("%s-%s-run", sanitizeName(p.Name), sanitizeName(svc.Name))
-	}
-	args = replaceFlagValue(args, "--name", name)
-
-	// Find the image boundary: everything from the image onward is image+command.
-	imageIdx := imageIndex(args, svc, p)
-
-	// Inject interactive/tty/env flags before the image.
-	var inject []string
-	if opts.Interactive {
-		inject = append(inject, "--interactive")
-	}
-	if opts.TTY {
-		inject = append(inject, "--tty")
-	}
-	for _, env := range opts.Env {
-		inject = append(inject, "--env", env)
-	}
-
-	head := append([]string{}, args[:imageIdx]...)
-	head = append(head, inject...)
-
-	if len(opts.Command) > 0 {
-		// Image only, then the override command.
-		image := args[imageIdx]
-		return append(append(head, image), opts.Command...)
-	}
-	// Keep the original image+command tail.
-	return append(head, args[imageIdx:]...)
-}
-
-func imageIndex(args []string, svc types.ServiceConfig, p *types.Project) int {
-	image := svc.Image
-	if image == "" && svc.Build != nil {
-		image = translate.BuildImageTag(p.Name, svc)
-	}
-	// Search from the end so we don't match a flag value equal to the image.
-	for i := len(args) - 1; i >= 0; i-- {
-		if args[i] == image {
-			return i
-		}
-	}
-	return len(args)
-}
-
-func replaceFlagValue(args []string, flag, value string) []string {
-	out := append([]string{}, args...)
-	for i := 0; i+1 < len(out); i++ {
-		if out[i] == flag {
-			out[i+1] = value
-			return out
-		}
-	}
-	return out
 }
 
 func sanitizeName(s string) string {
