@@ -6,7 +6,12 @@ import (
 )
 
 func newCreateCommand(opts *globalOptions) *cobra.Command {
-	var scaleFlags []string
+	var (
+		scaleFlags    []string
+		noBuild       bool
+		pull          string
+		removeOrphans bool
+	)
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create the project's containers without starting them",
@@ -20,10 +25,19 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Create(cmd.Context(), proj, scale)
+			return opts.engine(cmd.OutOrStdout()).Create(cmd.Context(), proj, engine.CreateOptions{
+				Scale:         scale,
+				NoBuild:       noBuild,
+				Pull:          pull,
+				RemoveOrphans: removeOrphans,
+			})
 		},
 	}
-	cmd.Flags().StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
+	f := cmd.Flags()
+	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
+	f.BoolVar(&noBuild, "no-build", false, "Don't build an image, even if it's policy")
+	f.StringVar(&pull, "pull", "policy", `Pull images before running ("always"|"missing"|"never")`)
+	f.BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
 	return cmd
 }
 

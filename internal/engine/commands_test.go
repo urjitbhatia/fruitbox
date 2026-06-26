@@ -14,7 +14,7 @@ func TestCreateUsesCreateVerbAndDoesNotStart(t *testing.T) {
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
 
-	if err := e.Create(context.Background(), proj, nil); err != nil {
+	if err := e.Create(context.Background(), proj, CreateOptions{}); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	calls := fake.CommandArgs()
@@ -78,5 +78,44 @@ func TestAttachInteractive(t *testing.T) {
 	}
 	if firstMatch(fake.CommandArgs(), "start --attach --interactive basic-web-1") == -1 {
 		t.Errorf("attach should start --attach, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestCreateNoBuildSkipsBuild(t *testing.T) {
+	proj := load(t, "build")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Create(context.Background(), proj, CreateOptions{NoBuild: true}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "build --tag") != -1 {
+		t.Errorf("--no-build should skip building, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestCreateBuildsByDefault(t *testing.T) {
+	proj := load(t, "build")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Create(context.Background(), proj, CreateOptions{}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "build --tag build_api") == -1 {
+		t.Errorf("create should build buildable services by default, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestCreateRemoveOrphans(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	fake.On("list --all --format json", runner.Result{Stdout: `[
+		{"name":"basic-ghost-1","labels":{"com.docker.compose.project":"basic","com.docker.compose.service":"ghost"}}
+	]`}, nil)
+	e := New(fake, io.Discard)
+	if err := e.Create(context.Background(), proj, CreateOptions{RemoveOrphans: true}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "delete basic-ghost-1") == -1 {
+		t.Errorf("create --remove-orphans should remove orphan, calls: %v", fake.CommandArgs())
 	}
 }

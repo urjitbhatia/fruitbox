@@ -8,9 +8,32 @@ import (
 	"github.com/urjitbhatia/fruitbox/internal/translate"
 )
 
+// CreateOptions controls Create.
+type CreateOptions struct {
+	Scale         map[string]int
+	NoBuild       bool   // skip building images for services with a build section
+	Pull          string // "always" pulls images before creating
+	RemoveOrphans bool   // remove containers for services not in the compose file
+}
+
 // Create creates the project's networks, volumes and service containers
 // without starting them (compose `create`).
-func (e *Engine) Create(ctx context.Context, p *types.Project, scale map[string]int) error {
+func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOptions) error {
+	if !opts.NoBuild {
+		if err := e.Build(ctx, p, nil); err != nil {
+			return err
+		}
+	}
+	if opts.Pull == "always" {
+		if err := e.Pull(ctx, p, nil, PullOptions{}); err != nil {
+			return err
+		}
+	}
+	if opts.RemoveOrphans {
+		if err := e.removeOrphans(ctx, p); err != nil {
+			return err
+		}
+	}
 	if err := e.ensureNetworks(ctx, p); err != nil {
 		return err
 	}
@@ -29,7 +52,7 @@ func (e *Engine) Create(ctx context.Context, p *types.Project, scale map[string]
 		for _, warning := range translate.UnsupportedWarnings(svc) {
 			e.logf("WARNING: %s: %s", svc.Name, warning)
 		}
-		for n := 1; n <= effectiveScale(svc, scale); n++ {
+		for n := 1; n <= effectiveScale(svc, opts.Scale); n++ {
 			mounts, err := e.prepareGeneratedMounts(p, svc, n)
 			if err != nil {
 				return err

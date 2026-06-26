@@ -115,8 +115,9 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 	}
 
 	// --no-start: create everything but don't start (delegates to create).
+	// Build/pull/orphans already handled above, so skip them here.
 	if opts.NoStart {
-		return e.Create(ctx, p, opts.Scale)
+		return e.Create(ctx, p, CreateOptions{Scale: opts.Scale, NoBuild: true})
 	}
 
 	if err := e.ensureNetworks(ctx, p); err != nil {
