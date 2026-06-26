@@ -53,7 +53,15 @@ named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
 | `fruitbox kill [-s SIG] [svc...]` | ✅ signal containers |
 | `fruitbox pull [svc...]` | ✅ pull service images (deduped) |
 | `fruitbox exec [-it] SERVICE CMD` | ✅ run a command in a service container |
+| `fruitbox run [--rm] SERVICE [CMD]` | ✅ one-off run; starts deps, command override |
+| `fruitbox images [-q]` | ✅ list images used by services |
+| `fruitbox port SERVICE PORT` | ✅ resolve published host port |
+| `fruitbox cp SRC DEST` | ✅ copy files to/from a service container |
 | `fruitbox version` | ✅ |
+
+`up` supports `-d`, `--no-build`, `--scale SERVICE=N`, `--remove-orphans`.
+`depends_on` conditions (`service_healthy`, `service_completed_successfully`)
+are honored — fruitbox supervises healthchecks itself since the runtime does not.
 
 Global flags mirror Docker Compose: `-f/--file`, `-p/--project-name`,
 `--project-directory`, `--profile`, `--env-file`, plus `--container-binary`.
@@ -78,11 +86,11 @@ fake runner, so no `container` install is required to develop fruitbox.
 
 ## Roadmap
 
-- `run` (one-off) / `images` / `cp` / `top` / `port` / `events`
-- `depends_on` health conditions (`service_healthy`, `service_completed_successfully`)
-- restart-policy supervision (`restart:`), `healthcheck`
-- live `ps` filtering via `container ls` label queries
-- `--scale` overrides on `up`, `--remove-orphans`
+- `top` / `events` / `wait` / `ls` (list projects)
+- restart-policy supervision (`restart: always|on-failure`) via a fruitbox daemon
+- live `ps` enrichment via `container ls` label queries
+- runtime gaps Apple `container` can't express today (`hostname`, `extra_hosts`,
+  `privileged`, `mac_address`, `sysctls`, `devices`) — currently warned, not dropped silently
 - older Compose spec versions
 
 ## Requirements
