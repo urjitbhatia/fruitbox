@@ -55,7 +55,7 @@ stop, top, unpause, up, version, wait, watch.
 Per-command flag gaps are enforced by `TestFlagParity` (the `knownFlagGaps`
 baseline) and can be regenerated with `scripts/compat-audit.sh`.
 
-**Progress: 138 → 66 recorded gaps (16 of 29 commands at full flag parity).**
+**Progress: 138 → 57 recorded gaps (18 of 29 commands at full flag parity).**
 
 > Validated against the real Apple `container` v1.0.0 runtime (see the
 > integration lane, `make test-integration`). One discovered limitation:
