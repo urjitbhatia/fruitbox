@@ -1,0 +1,82 @@
+package engine
+
+import (
+	"context"
+	"io"
+	"strings"
+	"testing"
+
+	"github.com/urjitbhatia/fruitbox/internal/runner"
+)
+
+func TestCreateUsesCreateVerbAndDoesNotStart(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+
+	if err := e.Create(context.Background(), proj, nil); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	calls := fake.CommandArgs()
+	// Containers created with the `create` verb, in dependency order.
+	if firstMatch(calls, "create --name basic-db-1") == -1 {
+		t.Errorf("db should be created, calls:\n%s", strings.Join(calls, "\n"))
+	}
+	if firstMatch(calls, "run --name basic-web-1") != -1 {
+		t.Errorf("create must not `run` containers")
+	}
+}
+
+func TestRmForceDeletes(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Rm(context.Background(), proj, []string{"web"}, RmOptions{Force: true}); err != nil {
+		t.Fatalf("Rm: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "delete --force basic-web-1") == -1 {
+		t.Errorf("rm -f should force-delete, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestPushDedupesImages(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Push(context.Background(), proj, nil); err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+	calls := fake.CommandArgs()
+	if firstMatch(calls, "image push nginx:1.27") == -1 || firstMatch(calls, "image push postgres:16") == -1 {
+		t.Errorf("expected pushes for both images, calls: %v", calls)
+	}
+}
+
+func TestScaleStartsReplicasAndTrimsSurplus(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Scale(context.Background(), proj, map[string]int{"web": 2}); err != nil {
+		t.Fatalf("Scale: %v", err)
+	}
+	calls := fake.CommandArgs()
+	if firstMatch(calls, "--name basic-web-1") == -1 || firstMatch(calls, "--name basic-web-2") == -1 {
+		t.Errorf("scale should start 2 web replicas, calls: %v", calls)
+	}
+	// Surplus replica 3 should be trimmed.
+	if firstMatch(calls, "delete basic-web-3") == -1 {
+		t.Errorf("scale should attempt to remove surplus replica 3, calls: %v", calls)
+	}
+}
+
+func TestAttachInteractive(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Attach(context.Background(), proj, "web", 1); err != nil {
+		t.Fatalf("Attach: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "start --attach --interactive basic-web-1") == -1 {
+		t.Errorf("attach should start --attach, calls: %v", fake.CommandArgs())
+	}
+}

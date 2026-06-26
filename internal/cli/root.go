@@ -81,6 +81,11 @@ func NewRootCommand() *cobra.Command {
 		newTopCommand(opts),
 		newPauseCommand(opts),
 		newUnpauseCommand(opts),
+		newCreateCommand(opts),
+		newRmCommand(opts),
+		newPushCommand(opts),
+		newScaleCommand(opts),
+		newAttachCommand(opts),
 		newVersionCommand(),
 	)
 	return root
