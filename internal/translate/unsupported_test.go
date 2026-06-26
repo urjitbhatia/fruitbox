@@ -10,23 +10,30 @@ import (
 func TestUnsupportedWarnings(t *testing.T) {
 	svc := types.ServiceConfig{
 		Name:       "web",
-		Hostname:   "myhost",
 		Privileged: true,
-		Restart:    "always",
-		ExtraHosts: types.HostsList{"a": []string{"1.2.3.4"}},
+		MacAddress: "02:42:ac:11:00:02",
+		GroupAdd:   []string{"audio"},
 	}
 	w := UnsupportedWarnings(svc)
 	joined := strings.Join(w, "\n")
-	for _, want := range []string{"hostname", "privileged", "restart", "extra_hosts"} {
+	for _, want := range []string{"privileged", "mac_address", "group_add"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("expected warning about %q, got:\n%s", want, joined)
 		}
 	}
 }
 
-func TestUnsupportedWarningsNoneForPlainService(t *testing.T) {
-	svc := types.ServiceConfig{Name: "web", Image: "nginx", Restart: "no"}
+func TestUnsupportedWarningsNoneForHandledAttrs(t *testing.T) {
+	// hostname, extra_hosts and sysctls are handled via workarounds, not warned.
+	svc := types.ServiceConfig{
+		Name:       "web",
+		Image:      "nginx",
+		Restart:    "always",
+		Hostname:   "myhost",
+		ExtraHosts: types.HostsList{"a": []string{"1.2.3.4"}},
+		Sysctls:    types.Mapping{"net.core.somaxconn": "1024"},
+	}
 	if w := UnsupportedWarnings(svc); len(w) != 0 {
-		t.Errorf("expected no warnings, got %v", w)
+		t.Errorf("expected no warnings for handled attrs, got %v", w)
 	}
 }

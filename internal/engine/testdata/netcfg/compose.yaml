@@ -1,0 +1,8 @@
+services:
+  app:
+    image: myapp:latest
+    hostname: apphost
+    extra_hosts:
+      - "db.internal=10.0.0.5"
+    sysctls:
+      net.core.somaxconn: "1024"

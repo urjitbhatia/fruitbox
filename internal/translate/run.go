@@ -49,6 +49,10 @@ type RunOptions struct {
 	Oneoff bool
 	// Create generates `create` arguments instead of `run`.
 	Create bool
+	// ExtraVolumes are additional raw `--volume` specs to inject (used by the
+	// engine to bind-mount generated files such as /etc/hosts and /etc/hostname
+	// that the runtime cannot configure via flags).
+	ExtraVolumes []string
 }
 
 // BuildRunArgs converts a resolved compose service into the argument vector for
@@ -176,6 +180,10 @@ func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) (
 	}
 	for _, t := range svc.Tmpfs {
 		args = append(args, "--tmpfs", t)
+	}
+	// Engine-provided generated-file mounts (e.g. /etc/hosts, /etc/hostname).
+	for _, v := range opts.ExtraVolumes {
+		args = append(args, "--volume", v)
 	}
 
 	// Secrets and configs are exposed as read-only bind mounts of their source

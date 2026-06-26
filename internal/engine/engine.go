@@ -21,6 +21,9 @@ type Engine struct {
 	Now func() time.Time
 	// Sleep pauses for d or until ctx is cancelled; injectable for tests.
 	Sleep func(ctx context.Context, d time.Duration) error
+	// StateDir is where fruitbox writes generated per-container files
+	// (e.g. /etc/hosts, /etc/hostname). Defaults to <tmp>/fruitbox.
+	StateDir string
 }
 
 // New returns an Engine using the given runner and progress writer.
@@ -168,9 +171,14 @@ func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.S
 	}
 	replicas := effectiveScale(svc, opts.Scale)
 	for n := 1; n <= replicas; n++ {
+		extraMounts, err := e.prepareGeneratedMounts(p, svc, n)
+		if err != nil {
+			return fmt.Errorf("prepare generated files for %s: %w", svc.Name, err)
+		}
 		args, err := translate.BuildRunArgs(p, svc, translate.RunOptions{
-			Number: n,
-			Detach: opts.Detach,
+			Number:       n,
+			Detach:       opts.Detach,
+			ExtraVolumes: extraMounts,
 		})
 		if err != nil {
 			return fmt.Errorf("build run args for %s: %w", svc.Name, err)
@@ -179,6 +187,7 @@ func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.S
 		if _, err := e.Runner.Run(ctx, args...); err != nil {
 			return fmt.Errorf("start %s: %w", svc.Name, err)
 		}
+		e.applySysctls(ctx, p, svc, n)
 	}
 	return nil
 }

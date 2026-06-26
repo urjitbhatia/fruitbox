@@ -59,6 +59,8 @@ named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
 | `fruitbox cp SRC DEST` | ✅ copy files to/from a service container |
 | `fruitbox ls [-q]` | ✅ list running compose projects (runtime-wide) |
 | `fruitbox wait [svc...]` | ✅ block until containers stop, print exit code |
+| `fruitbox top [svc...]` | ✅ in-container `ps` (runtime has no native top) |
+| `fruitbox pause / unpause [svc...]` | ✅ suspend/resume via SIGSTOP/SIGCONT |
 | `fruitbox version` | ✅ |
 
 `up` supports `-d`, `--no-build`, `--scale SERVICE=N`, `--remove-orphans`.
@@ -94,13 +96,35 @@ until services stop and restarts containers per their `restart:` policy
 `deploy.restart_policy`). Since Apple's runtime has no restart-policy daemon,
 fruitbox performs supervision itself.
 
+## Runtime-gap workarounds
+
+Apple's `container` CLI lacks flags for several Compose attributes. Rather than
+drop them, fruitbox emulates them:
+
+| Attribute / command | How fruitbox handles it |
+|---|---|
+| `hostname` | generates `/etc/hostname` and bind-mounts it read-only |
+| `extra_hosts` | generates `/etc/hosts` (loopback + entries) and bind-mounts it |
+| `sysctls` | applies namespaced sysctls via post-start `container exec sysctl -w` |
+| `top` | runs `ps` inside each container via `exec` |
+| `pause` / `unpause` | sends `SIGSTOP` / `SIGCONT` via `container kill --signal` |
+
+Generated files live under `<tmp>/fruitbox/<project>/<container>/`.
+
+The genuinely-unemulatable attributes — `privileged`, `devices`, `mac_address`,
+`group_add` — are true VM-isolation boundaries; fruitbox emits an explicit
+`WARNING` for these instead of silently ignoring them.
+
+## Compose spec versions
+
+The latest Compose Specification is the primary target. Legacy files with a
+top-level `version:` (Compose v2.x / v3.x) also load — the reference loader
+treats `version` as obsolete-but-tolerated, exactly like `docker compose`.
+
 ## Roadmap
 
-- `top` / `events`
+- `events` stream (synthesized from runtime polling)
 - live `ps` enrichment via `container ls` label queries
-- runtime gaps Apple `container` can't express today (`hostname`, `extra_hosts`,
-  `privileged`, `mac_address`, `sysctls`, `devices`) — currently warned, not dropped silently
-- older Compose spec versions
 
 ## Requirements
 

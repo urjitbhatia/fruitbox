@@ -59,6 +59,29 @@ func TestLoadBasicProject(t *testing.T) {
 	}
 }
 
+func TestLoadLegacyVersionedFile(t *testing.T) {
+	// Older Compose schemas (with a top-level `version:`) must still load; the
+	// reference loader treats `version` as obsolete-but-tolerated, like docker.
+	ctx := context.Background()
+	proj, err := Load(ctx, LoadOptions{
+		ConfigPaths: []string{filepath.Join("testdata", "legacy", "docker-compose.yml")},
+		ProjectName: "legacy",
+	})
+	if err != nil {
+		t.Fatalf("legacy load: %v", err)
+	}
+	if len(proj.Services) != 2 {
+		t.Fatalf("legacy project should have 2 services, got %d", len(proj.Services))
+	}
+	web, err := proj.GetService("web")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if web.MemLimit == 0 {
+		t.Error("legacy mem_limit should be parsed")
+	}
+}
+
 func TestLoadAppliesProjectLabelsConvention(t *testing.T) {
 	ctx := context.Background()
 	proj, err := Load(ctx, LoadOptions{

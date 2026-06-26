@@ -16,23 +16,15 @@ func UnsupportedWarnings(svc types.ServiceConfig) []string {
 		w = append(w, fmt.Sprintf(format, args...))
 	}
 
-	if svc.Hostname != "" {
-		add("hostname %q is not supported by the container runtime and will be ignored", svc.Hostname)
-	}
-	if len(svc.ExtraHosts) > 0 {
-		add("extra_hosts is not supported by the container runtime and will be ignored")
-	}
+	// hostname, extra_hosts and sysctls are handled by fruitbox via generated
+	// bind-mounts / post-start execs (see engine prepare step), so they are not
+	// warned here. The following are genuine runtime/VM-isolation boundaries
+	// that cannot currently be emulated.
 	if svc.Privileged {
 		add("privileged mode is not supported by the container runtime and will be ignored")
 	}
-	if svc.Restart != "" && svc.Restart != "no" {
-		add("restart policy %q is not natively supported; fruitbox does not yet supervise restarts", svc.Restart)
-	}
 	if svc.MacAddress != "" {
 		add("mac_address is not supported by the container runtime and will be ignored")
-	}
-	if len(svc.Sysctls) > 0 {
-		add("sysctls are not supported by the container runtime and will be ignored")
 	}
 	if len(svc.Devices) > 0 {
 		add("devices are not supported by the container runtime and will be ignored")

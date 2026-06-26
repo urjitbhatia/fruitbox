@@ -1,0 +1,11 @@
+version: "2.4"
+services:
+  web:
+    image: nginx:1.27
+    ports:
+      - "8080:80"
+    mem_limit: 256m
+    links:
+      - db
+  db:
+    image: postgres:16

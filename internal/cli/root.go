@@ -78,6 +78,9 @@ func NewRootCommand() *cobra.Command {
 		newCpCommand(opts),
 		newLsCommand(opts),
 		newWaitCommand(opts),
+		newTopCommand(opts),
+		newPauseCommand(opts),
+		newUnpauseCommand(opts),
 		newVersionCommand(),
 	)
 	return root
