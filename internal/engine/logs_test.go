@@ -12,7 +12,7 @@ func TestLogsTail(t *testing.T) {
 	proj := load(t, "basic")
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
-	if err := e.Logs(context.Background(), proj, []string{"web"}, LogsOptions{Tail: "100"}); err != nil {
+	if err := e.Logs(context.Background(), proj, []string{"web"}, LogOptions{Tail: "100"}); err != nil {
 		t.Fatalf("Logs: %v", err)
 	}
 	if firstMatch(fake.CommandArgs(), "logs -n 100 basic-web-1") == -1 {
@@ -24,7 +24,7 @@ func TestLogsTailAllOmitsFlag(t *testing.T) {
 	proj := load(t, "basic")
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
-	if err := e.Logs(context.Background(), proj, []string{"web"}, LogsOptions{Tail: "all"}); err != nil {
+	if err := e.Logs(context.Background(), proj, []string{"web"}, LogOptions{Tail: "all"}); err != nil {
 		t.Fatalf("Logs: %v", err)
 	}
 	if firstMatch(fake.CommandArgs(), "logs basic-web-1") == -1 {
@@ -36,7 +36,7 @@ func TestLogsFollow(t *testing.T) {
 	proj := load(t, "basic")
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
-	if err := e.Logs(context.Background(), proj, []string{"web"}, LogsOptions{Follow: true}); err != nil {
+	if err := e.Logs(context.Background(), proj, []string{"web"}, LogOptions{Follow: true}); err != nil {
 		t.Fatalf("Logs: %v", err)
 	}
 	if firstMatch(fake.CommandArgs(), "logs --follow basic-web-1") == -1 {
@@ -50,7 +50,7 @@ func TestLogsIndexSelectsReplica(t *testing.T) {
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
 	// Index 1 on a single-replica service still works.
-	if err := e.Logs(context.Background(), proj, []string{"web"}, LogsOptions{Index: 1}); err != nil {
+	if err := e.Logs(context.Background(), proj, []string{"web"}, LogOptions{Index: 1}); err != nil {
 		t.Fatalf("Logs: %v", err)
 	}
 	if firstMatch(fake.CommandArgs(), "logs basic-web-1") == -1 {

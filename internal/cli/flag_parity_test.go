@@ -24,7 +24,7 @@ var knownFlagGaps = map[string][]string{
 	"create": {"build", "force-recreate", "no-recreate", "quiet-pull", "yes"},
 	"events": {"since", "until"},
 	"exec":   {"privileged"},
-	"logs":   {"no-color", "no-log-prefix", "since", "timestamps", "until"},
+	"logs":   {"since", "until"},
 	"port":   {"index"},
 	"pull":   {"policy"},
 	"run":    {"quiet", "quiet-build", "quiet-pull", "use-aliases"},

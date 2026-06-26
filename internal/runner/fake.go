@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"io"
 	"strings"
 	"sync"
 )
@@ -92,6 +93,31 @@ func (f *Fake) RunInteractive(_ context.Context, args ...string) error {
 		return err
 	}
 	return nil
+}
+
+// RunWithOutput implements Runner, recording the call and writing any canned
+// stdout to the provided writer (so log-multiplexing can be tested).
+func (f *Fake) RunWithOutput(_ context.Context, stdout, stderr io.Writer, args ...string) error {
+	f.mu.Lock()
+	res, err, ok := f.recordAndLookup(args)
+	f.mu.Unlock()
+	if ok {
+		if res.Stdout != "" && stdout != nil {
+			_, _ = io.WriteString(stdout, res.Stdout)
+		}
+		if res.Stderr != "" && stderr != nil {
+			_, _ = io.WriteString(stderr, res.Stderr)
+		}
+		return err
+	}
+	return nil
+}
+
+// recordAndLookup appends a call and returns its canned response (caller holds
+// the lock).
+func (f *Fake) recordAndLookup(args []string) (Result, error, bool) {
+	f.Calls = append(f.Calls, Call{Args: append([]string(nil), args...)})
+	return f.lookup(strings.Join(args, " "))
 }
 
 // CommandArgs returns the recorded calls as joined argument strings, for terse

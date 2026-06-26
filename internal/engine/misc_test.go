@@ -82,5 +82,3 @@ func TestCopyAllReplicas(t *testing.T) {
 		}
 	}
 }
-
-func itoa(n int) string { return string(rune('0' + n)) }

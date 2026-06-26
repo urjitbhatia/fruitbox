@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 )
@@ -27,6 +28,10 @@ type Runner interface {
 	// RunInteractive executes `container <args...>` wired directly to the
 	// process stdio (for attached/interactive containers and log following).
 	RunInteractive(ctx context.Context, args ...string) error
+	// RunWithOutput executes `container <args...>`, streaming stdout and stderr
+	// to the given writers (no stdin). It is used for concurrent log
+	// multiplexing, where each container's output is prefixed.
+	RunWithOutput(ctx context.Context, stdout, stderr io.Writer, args ...string) error
 }
 
 // Exec is the production Runner that invokes the container binary.
@@ -78,6 +83,14 @@ func (e *Exec) RunInteractive(ctx context.Context, args ...string) error {
 	if isTerminal(e.Stdin) {
 		cmd.Stdin = e.Stdin
 	}
+	return cmd.Run()
+}
+
+// RunWithOutput implements Runner.
+func (e *Exec) RunWithOutput(ctx context.Context, stdout, stderr io.Writer, args ...string) error {
+	cmd := exec.CommandContext(ctx, e.Binary, args...)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	return cmd.Run()
 }
 
