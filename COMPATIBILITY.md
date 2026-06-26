@@ -12,6 +12,22 @@ go install ./cmd/fruitbox
 Baseline reference: `docker compose` v5.0.2 (also cross-checked against
 <https://docs.docker.com/reference/cli/docker/compose/>).
 
+## Automated compatibility tests
+
+Two tests in `internal/cli` enforce this against a real `docker compose`
+(they `t.Skip` when it isn't installed, so CI stays hermetic):
+
+- **`TestConfigMatchesDockerCompose`** — differential output test. Runs fruitbox
+  in-process and `docker compose` as a subprocess over a fixture matrix
+  (`--services/--networks/--volumes/--profiles/--images`, profile activation,
+  multi-file merge, and full YAML render) and asserts **identical output**. The
+  full `config` YAML is byte-for-byte identical because both use compose-go's
+  marshaller.
+- **`TestFlagParity`** — a *ratchet*. It computes, per command, the docker
+  compose flags fruitbox is missing and asserts the set exactly equals the
+  `knownFlagGaps` baseline. Closing a gap, regressing one (silently losing a
+  flag — like the `-f` crash did), or a docker change all force a visible update.
+
 > **Honesty note:** an earlier revision claimed "full command parity." That was
 > wrong — it compared command *names* only. The flag surface was far from
 > complete. This document exists so the claim stays grounded in a reproducible

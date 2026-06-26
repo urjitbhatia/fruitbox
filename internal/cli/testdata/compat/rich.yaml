@@ -1,0 +1,26 @@
+name: rich
+services:
+  web:
+    image: nginx:1.27
+    ports: ["8080:80"]
+    networks: [frontend, backend]
+    depends_on: [api]
+    volumes: ["web-logs:/var/log/nginx"]
+  api:
+    image: myorg/api:2.1
+    environment:
+      LOG_LEVEL: debug
+    networks: [backend]
+    secrets: [api_key]
+  cron:
+    image: busybox:1.36
+    profiles: [tools]
+networks:
+  frontend:
+  backend:
+    internal: true
+volumes:
+  web-logs:
+secrets:
+  api_key:
+    file: ./api_key.txt
