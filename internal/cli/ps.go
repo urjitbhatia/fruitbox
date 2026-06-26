@@ -20,6 +20,7 @@ func newPsCommand(opts *globalOptions) *cobra.Command {
 		all          bool
 		status       string
 		filters      []string
+		orphans      bool
 	)
 	cmd := &cobra.Command{
 		Use:   "ps",
@@ -42,6 +43,9 @@ func newPsCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			statuses = filterPs(statuses, pf)
+			if orphans {
+				statuses = append(statuses, e.Orphans(cmd.Context(), proj)...)
+			}
 
 			switch {
 			case servicesOnly:
@@ -73,6 +77,7 @@ func newPsCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVarP(&all, "all", "a", false, "Show all stopped containers (including those created by run)")
 	f.StringVar(&status, "status", "", "Filter services by status")
 	f.StringArrayVar(&filters, "filter", nil, "Filter services by a property (status=, name=)")
+	f.BoolVar(&orphans, "orphans", false, "Include orphaned services (not declared by project)")
 	return cmd
 }
 

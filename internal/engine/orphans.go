@@ -18,31 +18,50 @@ type listedContainer struct {
 	service string
 }
 
-// removeOrphans deletes containers that belong to this project (by label) but
-// whose service is no longer defined in the compose file.
-func (e *Engine) removeOrphans(ctx context.Context, p *types.Project) error {
+// projectOrphans returns the containers labelled for this project whose service
+// is no longer defined in the compose file.
+func (e *Engine) projectOrphans(ctx context.Context, p *types.Project) []listedContainer {
 	res, err := e.Runner.Run(ctx, "list", "--all", "--format", "json")
 	if err != nil {
-		// Listing isn't available; nothing we can safely do.
 		return nil
 	}
-	entries := parseContainerList(res.Stdout)
 	active := map[string]bool{}
 	for _, s := range p.ServiceNames() {
 		active[s] = true
 	}
-	for _, c := range entries {
-		if c.project != p.Name {
+	var orphans []listedContainer
+	for _, c := range parseContainerList(res.Stdout) {
+		if c.project != p.Name || c.service == "" || active[c.service] {
 			continue
 		}
-		if c.service == "" || active[c.service] {
-			continue
-		}
+		orphans = append(orphans, c)
+	}
+	return orphans
+}
+
+// removeOrphans deletes containers that belong to this project (by label) but
+// whose service is no longer defined in the compose file.
+func (e *Engine) removeOrphans(ctx context.Context, p *types.Project) error {
+	for _, c := range e.projectOrphans(ctx, p) {
 		e.logf("Removing orphan container %s", c.Name)
 		_, _ = e.Runner.Run(ctx, "stop", c.Name)
 		_, _ = e.Runner.Run(ctx, "delete", c.Name)
 	}
 	return nil
+}
+
+// Orphans returns the project's orphan containers as status records, for
+// `ps --orphans`.
+func (e *Engine) Orphans(ctx context.Context, p *types.Project) []ContainerStatus {
+	var out []ContainerStatus
+	for _, c := range e.projectOrphans(ctx, p) {
+		status := c.status
+		if status == "" {
+			status = "orphan"
+		}
+		out = append(out, ContainerStatus{Name: c.Name, Service: c.service, Status: status})
+	}
+	return out
 }
 
 // parseContainerList tolerantly parses container ls JSON into entries, scanning
