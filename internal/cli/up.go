@@ -20,13 +20,13 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		pull          string
 		forceRecreate bool
 		noRecreate    bool
+		noDeps        bool
 		scaleFlags    []string
 	)
 	cmd := &cobra.Command{
-		Use:   "up",
+		Use:   "up [SERVICE...]",
 		Short: "Create and start the project's containers",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, services []string) error {
 			proj, err := opts.load(cmd.Context())
 			if err != nil {
 				return err
@@ -47,6 +47,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				Pull:          pull,
 				ForceRecreate: forceRecreate,
 				NoRecreate:    noRecreate,
+				Services:      services,
+				NoDeps:        noDeps,
 			})
 		},
 	}
@@ -60,6 +62,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.StringVar(&pull, "pull", "policy", `Pull images before running ("always"|"missing"|"never")`)
 	f.BoolVar(&forceRecreate, "force-recreate", false, "Recreate containers even if their configuration hasn't changed")
 	f.BoolVar(&noRecreate, "no-recreate", false, "If containers already exist, don't recreate them")
+	f.BoolVar(&noDeps, "no-deps", false, "Don't start linked services")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }

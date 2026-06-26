@@ -59,3 +59,36 @@ func TestUpWaitWaitsForHealthchecks(t *testing.T) {
 		t.Errorf("--wait should probe healthchecks, calls: %v", fake.CommandArgs())
 	}
 }
+
+func TestUpServiceSelectionIncludesDeps(t *testing.T) {
+	proj := load(t, "basic") // web depends_on db
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	// up only "web" -> should also start its dependency db.
+	if err := e.Up(context.Background(), proj, UpOptions{Detach: true, Services: []string{"web"}}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	calls := fake.CommandArgs()
+	if firstMatch(calls, "run --name basic-db-1") == -1 {
+		t.Errorf("up web should also start dependency db, calls: %v", calls)
+	}
+	if firstMatch(calls, "run --name basic-web-1") == -1 {
+		t.Errorf("up web should start web, calls: %v", calls)
+	}
+}
+
+func TestUpNoDepsStartsOnlyNamed(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Up(context.Background(), proj, UpOptions{Detach: true, Services: []string{"web"}, NoDeps: true}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	calls := fake.CommandArgs()
+	if firstMatch(calls, "run --name basic-web-1") == -1 {
+		t.Errorf("up --no-deps web should start web, calls: %v", calls)
+	}
+	if firstMatch(calls, "run --name basic-db-1") != -1 {
+		t.Errorf("up --no-deps must NOT start dependency db, calls: %v", calls)
+	}
+}

@@ -86,6 +86,33 @@ type UpOptions struct {
 	ForceRecreate bool
 	// NoRecreate leaves existing containers in place even if their config changed.
 	NoRecreate bool
+	// Services restricts the up to these services (empty = all). Their
+	// dependencies are included unless NoDeps is set.
+	Services []string
+	// NoDeps starts only the selected services, not their dependencies.
+	NoDeps bool
+}
+
+// selectedServices returns the set of service names Up should act on, or nil
+// when all services are selected. Dependencies of explicitly-named services are
+// included unless NoDeps is set.
+func (e *Engine) selectedServices(p *types.Project, opts UpOptions) map[string]bool {
+	if len(opts.Services) == 0 {
+		return nil // all services
+	}
+	set := map[string]bool{}
+	for _, name := range opts.Services {
+		set[name] = true
+		if opts.NoDeps {
+			continue
+		}
+		if svc, err := p.GetService(name); err == nil {
+			for dep := range transitiveDeps(p, svc) {
+				set[dep] = true
+			}
+		}
+	}
+	return set
 }
 
 // effectiveScale returns the replica count for a service, honoring a --scale
@@ -135,26 +162,35 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 	if err != nil {
 		return err
 	}
+	selected := e.selectedServices(p, opts)
+	var started []string
 	for _, name := range order {
+		if selected != nil && !selected[name] {
+			continue
+		}
 		svc, err := p.GetService(name)
 		if err != nil {
 			return err
 		}
 		// Wait for declared dependencies to satisfy their conditions before
-		// starting this service. Dependencies appear earlier in the order, so
+		// starting this service. Skipped under --no-deps, which assumes deps
+		// are already running. Dependencies appear earlier in the order, so
 		// they are already started by now.
-		if err := e.waitForDependencies(ctx, p, svc); err != nil {
-			return err
+		if !opts.NoDeps {
+			if err := e.waitForDependencies(ctx, p, svc); err != nil {
+				return err
+			}
 		}
 		if err := e.startService(ctx, p, svc, opts); err != nil {
 			return err
 		}
+		started = append(started, name)
 	}
 
-	// --wait: block until every service with a healthcheck reports healthy,
+	// --wait: block until every started service with a healthcheck is healthy,
 	// optionally bounded by --wait-timeout.
 	if opts.Wait {
-		if err := e.waitForHealthy(ctx, p, order, opts.WaitTimeout); err != nil {
+		if err := e.waitForHealthy(ctx, p, started, opts.WaitTimeout); err != nil {
 			return err
 		}
 	}
@@ -162,7 +198,7 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 	// In foreground mode, block until services stop, honoring restart policies.
 	if !opts.Detach {
 		e.logf("Attached; waiting for services to stop (Ctrl-C to detach)")
-		return e.Supervise(ctx, p, nil)
+		return e.Supervise(ctx, p, started)
 	}
 	return nil
 }
