@@ -48,6 +48,11 @@ named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
 | `fruitbox down [-v]` | ✅ stop & remove containers (reverse order), networks, optional volumes |
 | `fruitbox ps [-q]` | ✅ list expected containers and live status |
 | `fruitbox logs [-f] [svc...]` | ✅ stream container logs |
+| `fruitbox build [svc...]` | ✅ build images (`build:` → `container build`) |
+| `fruitbox start/stop/restart [svc...]` | ✅ lifecycle control (dependency-ordered) |
+| `fruitbox kill [-s SIG] [svc...]` | ✅ signal containers |
+| `fruitbox pull [svc...]` | ✅ pull service images (deduped) |
+| `fruitbox exec [-it] SERVICE CMD` | ✅ run a command in a service container |
 | `fruitbox version` | ✅ |
 
 Global flags mirror Docker Compose: `-f/--file`, `-p/--project-name`,
@@ -73,11 +78,11 @@ fake runner, so no `container` install is required to develop fruitbox.
 
 ## Roadmap
 
-- `build` support (Dockerfile → `container build`)
-- `start` / `stop` / `restart` / `kill` / `exec` / `run` / `pull` / `images` / `cp`
+- `run` (one-off) / `images` / `cp` / `top` / `port` / `events`
 - `depends_on` health conditions (`service_healthy`, `service_completed_successfully`)
 - restart-policy supervision (`restart:`), `healthcheck`
 - live `ps` filtering via `container ls` label queries
+- `--scale` overrides on `up`, `--remove-orphans`
 - older Compose spec versions
 
 ## Requirements
