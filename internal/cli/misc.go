@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"text/tabwriter"
 
@@ -9,7 +10,10 @@ import (
 )
 
 func newImagesCommand(opts *globalOptions) *cobra.Command {
-	var quiet bool
+	var (
+		quiet  bool
+		format string
+	)
 	cmd := &cobra.Command{
 		Use:   "images",
 		Short: "List images used by the project's services",
@@ -20,7 +24,8 @@ func newImagesCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			images := opts.engine(cmd.OutOrStdout()).Images(proj)
-			if quiet {
+			switch {
+			case quiet:
 				seen := map[string]bool{}
 				for _, im := range images {
 					if im.Image != "" && !seen[im.Image] {
@@ -29,16 +34,22 @@ func newImagesCommand(opts *globalOptions) *cobra.Command {
 					}
 				}
 				return nil
+			case format == "json":
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				return enc.Encode(images)
+			default:
+				w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
+				fmt.Fprintln(w, "SERVICE\tIMAGE")
+				for _, im := range images {
+					fmt.Fprintf(w, "%s\t%s\n", im.Service, im.Image)
+				}
+				return w.Flush()
 			}
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
-			fmt.Fprintln(w, "SERVICE\tIMAGE")
-			for _, im := range images {
-				fmt.Fprintf(w, "%s\t%s\n", im.Service, im.Image)
-			}
-			return w.Flush()
 		},
 	}
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Only display image names")
+	cmd.Flags().StringVar(&format, "format", "table", "Format output: table or json")
 	return cmd
 }
 

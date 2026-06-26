@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -81,8 +82,10 @@ func (e *Engine) projectState(ctx context.Context, projectName string) (containe
 
 // Events streams synthesized container lifecycle events for the project until
 // the context is cancelled. maxPolls bounds the number of polls (0 = infinite);
-// it exists primarily so tests terminate deterministically.
-func (e *Engine) Events(ctx context.Context, p *types.Project, maxPolls int) error {
+// it exists primarily so tests terminate deterministically. When jsonOut is
+// set, each event is emitted as a JSON object (matching `docker compose events
+// --json`) instead of a text line.
+func (e *Engine) Events(ctx context.Context, p *types.Project, maxPolls int, jsonOut bool) error {
 	var prev containerState
 	for i := 0; maxPolls == 0 || i < maxPolls; i++ {
 		if err := ctx.Err(); err != nil {
@@ -94,7 +97,7 @@ func (e *Engine) Events(ctx context.Context, p *types.Project, maxPolls int) err
 		}
 		if prev != nil {
 			for _, ev := range diffEvents(prev, cur) {
-				fmt.Fprintf(e.writer(), "%s container %s %s\n", e.now().Format(time.RFC3339), ev.Action, ev.Name)
+				e.emitEvent(ev, jsonOut)
 			}
 		}
 		prev = cur
@@ -106,4 +109,21 @@ func (e *Engine) Events(ctx context.Context, p *types.Project, maxPolls int) err
 		}
 	}
 	return nil
+}
+
+// emitEvent writes a single event as a text line or JSON object.
+func (e *Engine) emitEvent(ev Event, jsonOut bool) {
+	ts := e.now().Format(time.RFC3339)
+	if jsonOut {
+		rec := map[string]string{
+			"time":   ts,
+			"type":   "container",
+			"action": ev.Action,
+			"id":     ev.Name,
+		}
+		b, _ := json.Marshal(rec)
+		fmt.Fprintln(e.writer(), string(b))
+		return
+	}
+	fmt.Fprintf(e.writer(), "%s container %s %s\n", ts, ev.Action, ev.Name)
 }

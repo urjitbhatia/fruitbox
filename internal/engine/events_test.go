@@ -45,11 +45,30 @@ func TestEventsStreamsTransitions(t *testing.T) {
 	e := newTestEngine(fake)
 	e.Out = &out
 
-	if err := e.Events(context.Background(), proj, 2); err != nil {
+	if err := e.Events(context.Background(), proj, 2, false); err != nil {
 		t.Fatalf("Events: %v", err)
 	}
 	s := out.String()
 	if !strings.Contains(s, "container create basic-web-1") || !strings.Contains(s, "container start basic-web-1") {
 		t.Errorf("expected web create/start events, got:\n%s", s)
+	}
+}
+
+func TestEventsJSON(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	fake.OnSequence("list --all --format json",
+		runner.Result{Stdout: `[]`},
+		runner.Result{Stdout: `[{"name":"basic-web-1","status":"running","labels":{"com.docker.compose.project":"basic","com.docker.compose.service":"web"}}]`},
+	)
+	var out bytes.Buffer
+	e := newTestEngine(fake)
+	e.Out = &out
+	if err := e.Events(context.Background(), proj, 2, true); err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	s := out.String()
+	if !strings.Contains(s, `"action":"create"`) || !strings.Contains(s, `"id":"basic-web-1"`) {
+		t.Errorf("json events missing fields:\n%s", s)
 	}
 }

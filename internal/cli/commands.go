@@ -63,6 +63,7 @@ func newPushCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newScaleCommand(opts *globalOptions) *cobra.Command {
+	var noDeps bool
 	cmd := &cobra.Command{
 		Use:   "scale SERVICE=NUM [SERVICE=NUM...]",
 		Short: "Scale services to the given number of replicas",
@@ -76,9 +77,13 @@ func newScaleCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// scale only touches the named services, so --no-deps is the
+			// effective default; accepted for compatibility.
+			_ = noDeps
 			return opts.engine(cmd.OutOrStdout()).Scale(cmd.Context(), proj, scale)
 		},
 	}
+	cmd.Flags().BoolVar(&noDeps, "no-deps", false, "Don't start dependent services")
 	return cmd
 }
 
@@ -99,6 +104,7 @@ func newWatchCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newEventsCommand(opts *globalOptions) *cobra.Command {
+	var jsonOut bool
 	cmd := &cobra.Command{
 		Use:   "events",
 		Short: "Stream container lifecycle events for the project",
@@ -109,9 +115,10 @@ func newEventsCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			// 0 = stream until interrupted.
-			return opts.engine(cmd.OutOrStdout()).Events(cmd.Context(), proj, 0)
+			return opts.engine(cmd.OutOrStdout()).Events(cmd.Context(), proj, 0, jsonOut)
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output events as a stream of JSON objects")
 	return cmd
 }
 
