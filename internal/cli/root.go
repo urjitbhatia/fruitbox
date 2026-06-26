@@ -25,14 +25,29 @@ type globalOptions struct {
 	binary      string
 }
 
-func (g *globalOptions) load(ctx context.Context) (*types.Project, error) {
-	return compose.Load(ctx, compose.LoadOptions{
+// baseLoadOptions returns the compose load options derived from the global
+// flags, before any per-command overrides.
+func (g *globalOptions) baseLoadOptions() compose.LoadOptions {
+	return compose.LoadOptions{
 		ConfigPaths: g.files,
 		WorkingDir:  g.projectDir,
 		ProjectName: g.projectName,
 		Profiles:    g.profiles,
 		EnvFiles:    g.envFiles,
-	})
+	}
+}
+
+func (g *globalOptions) load(ctx context.Context) (*types.Project, error) {
+	return compose.Load(ctx, g.baseLoadOptions())
+}
+
+// loadWith loads the project applying per-command overrides to the load options.
+func (g *globalOptions) loadWith(ctx context.Context, mutate func(*compose.LoadOptions)) (*types.Project, error) {
+	lo := g.baseLoadOptions()
+	if mutate != nil {
+		mutate(&lo)
+	}
+	return compose.Load(ctx, lo)
 }
 
 func (g *globalOptions) engine(out io.Writer) *engine.Engine {

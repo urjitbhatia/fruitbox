@@ -30,6 +30,20 @@ type LoadOptions struct {
 	Profiles []string
 	// EnvFiles are additional .env files to load before OS environment.
 	EnvFiles []string
+
+	// The following toggles mirror `docker compose config` flags. Zero values
+	// keep the default (full) loading behavior.
+
+	// NoInterpolate disables ${VAR} interpolation (--no-interpolate).
+	NoInterpolate bool
+	// NoNormalize disables model normalization (--no-normalize).
+	NoNormalize bool
+	// NoConsistency skips the consistency check (--no-consistency).
+	NoConsistency bool
+	// NoResolvePaths leaves relative paths unresolved (--no-path-resolution).
+	NoResolvePaths bool
+	// NoEnvResolution skips computing service environments (--no-env-resolution).
+	NoEnvResolution bool
 }
 
 // Load resolves a compose project from the given options, returning the
@@ -68,6 +82,25 @@ func Load(ctx context.Context, opts LoadOptions) (*types.Project, error) {
 	}
 	if len(opts.Profiles) > 0 {
 		projectOpts = append(projectOpts, cli.WithProfiles(opts.Profiles))
+	}
+	// Resolve paths by default (so build contexts / file: refs are absolute),
+	// unless the caller opted out.
+	projectOpts = append(projectOpts, cli.WithResolvedPaths(!opts.NoResolvePaths))
+	// Drop networks/volumes/secrets/configs/models not referenced by active
+	// services, matching docker compose (e.g. resources used only by a
+	// profile-disabled service are pruned).
+	projectOpts = append(projectOpts, cli.WithoutUnnecessaryResources)
+	if opts.NoInterpolate {
+		projectOpts = append(projectOpts, cli.WithInterpolation(false))
+	}
+	if opts.NoNormalize {
+		projectOpts = append(projectOpts, cli.WithNormalization(false))
+	}
+	if opts.NoConsistency {
+		projectOpts = append(projectOpts, cli.WithConsistency(false))
+	}
+	if opts.NoEnvResolution {
+		projectOpts = append(projectOpts, cli.WithoutEnvironmentResolution)
 	}
 
 	options, err := cli.NewProjectOptions(configPaths, projectOpts...)
