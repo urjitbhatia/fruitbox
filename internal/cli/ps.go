@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -16,6 +17,9 @@ func newPsCommand(opts *globalOptions) *cobra.Command {
 		servicesOnly bool
 		format       string
 		noTrunc      bool
+		all          bool
+		status       string
+		filters      []string
 	)
 	cmd := &cobra.Command{
 		Use:   "ps",
@@ -32,6 +36,12 @@ func newPsCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			_ = noTrunc // fruitbox never truncates names, so --no-trunc is a no-op
+
+			pf, err := parsePsFilters(all, status, filters)
+			if err != nil {
+				return err
+			}
+			statuses = filterPs(statuses, pf)
 
 			switch {
 			case servicesOnly:
@@ -60,7 +70,60 @@ func newPsCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&servicesOnly, "services", false, "Display services")
 	f.StringVar(&format, "format", "table", "Format output: table or json")
 	f.BoolVar(&noTrunc, "no-trunc", false, "Don't truncate output")
+	f.BoolVarP(&all, "all", "a", false, "Show all stopped containers (including those created by run)")
+	f.StringVar(&status, "status", "", "Filter services by status")
+	f.StringArrayVar(&filters, "filter", nil, "Filter services by a property (status=, name=)")
 	return cmd
+}
+
+// psFilter holds the resolved ps filtering options.
+type psFilter struct {
+	all    bool
+	status string
+	name   string
+}
+
+// parsePsFilters merges --all/--status with --filter key=value entries.
+func parsePsFilters(all bool, status string, filters []string) (psFilter, error) {
+	pf := psFilter{all: all, status: status}
+	for _, f := range filters {
+		k, v, ok := strings.Cut(f, "=")
+		if !ok {
+			return pf, fmt.Errorf("invalid --filter %q, want key=value", f)
+		}
+		switch k {
+		case "status":
+			pf.status = v
+		case "name":
+			pf.name = v
+		default:
+			return pf, fmt.Errorf("unsupported --filter key %q (want status or name)", k)
+		}
+	}
+	return pf, nil
+}
+
+// filterPs applies the ps filter. Containers that do not exist ("not created")
+// are never listed (matching docker compose). Without --all or an explicit
+// status, only running containers are shown.
+func filterPs(in []engine.ContainerStatus, pf psFilter) []engine.ContainerStatus {
+	var out []engine.ContainerStatus
+	for _, s := range in {
+		if s.Status == "not created" {
+			continue
+		}
+		if pf.status != "" && s.Status != pf.status {
+			continue
+		}
+		if pf.status == "" && !pf.all && s.Status != "running" {
+			continue
+		}
+		if pf.name != "" && !strings.Contains(s.Name, pf.name) {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
 }
 
 // printPsServices prints the unique service names with containers, sorted.
