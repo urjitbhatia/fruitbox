@@ -76,6 +76,8 @@ func NewRootCommand() *cobra.Command {
 		newImagesCommand(opts),
 		newPortCommand(opts),
 		newCpCommand(opts),
+		newLsCommand(opts),
+		newWaitCommand(opts),
 		newVersionCommand(),
 	)
 	return root

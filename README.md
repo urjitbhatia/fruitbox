@@ -57,6 +57,8 @@ named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
 | `fruitbox images [-q]` | ✅ list images used by services |
 | `fruitbox port SERVICE PORT` | ✅ resolve published host port |
 | `fruitbox cp SRC DEST` | ✅ copy files to/from a service container |
+| `fruitbox ls [-q]` | ✅ list running compose projects (runtime-wide) |
+| `fruitbox wait [svc...]` | ✅ block until containers stop, print exit code |
 | `fruitbox version` | ✅ |
 
 `up` supports `-d`, `--no-build`, `--scale SERVICE=N`, `--remove-orphans`.
@@ -86,7 +88,7 @@ fake runner, so no `container` install is required to develop fruitbox.
 
 ## Roadmap
 
-- `top` / `events` / `wait` / `ls` (list projects)
+- `top` / `events`
 - restart-policy supervision (`restart: always|on-failure`) via a fruitbox daemon
 - live `ps` enrichment via `container ls` label queries
 - runtime gaps Apple `container` can't express today (`hostname`, `extra_hosts`,
