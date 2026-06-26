@@ -80,15 +80,17 @@ func TestUpWaitsForHealthyDependencyBeforeStartingDependent(t *testing.T) {
 	}
 
 	calls := fake.CommandArgs()
+	// Use the run (not inspect) positions for ordering, since `up` now also
+	// inspects each container to decide recreate-vs-reuse.
 	posDBRun := firstMatch(calls, "--name health-db-1")
 	posHealth := firstMatch(calls, "exec health-db-1 pg_isready")
 	posMigrateRun := firstMatch(calls, "--name health-migrate-1")
-	posInspect := firstMatch(calls, "inspect health-migrate-1")
+	posCompletion := lastMatch(calls, "inspect health-migrate-1")
 	posWebRun := firstMatch(calls, "--name health-web-1")
 
 	for label, pos := range map[string]int{
 		"db run": posDBRun, "db health probe": posHealth,
-		"migrate run": posMigrateRun, "migrate inspect": posInspect, "web run": posWebRun,
+		"migrate run": posMigrateRun, "migrate completion inspect": posCompletion, "web run": posWebRun,
 	} {
 		if pos == -1 {
 			t.Fatalf("missing call %q:\n%s", label, strings.Join(calls, "\n"))
@@ -98,9 +100,9 @@ func TestUpWaitsForHealthyDependencyBeforeStartingDependent(t *testing.T) {
 	if !(posDBRun < posHealth && posHealth < posMigrateRun) {
 		t.Errorf("ordering wrong: dbRun@%d health@%d migrateRun@%d", posDBRun, posHealth, posMigrateRun)
 	}
-	// migrate must complete (inspect) before web starts.
-	if !(posMigrateRun < posInspect && posInspect < posWebRun) {
-		t.Errorf("ordering wrong: migrateRun@%d inspect@%d webRun@%d", posMigrateRun, posInspect, posWebRun)
+	// migrate must run and its completion be observed before web starts.
+	if !(posMigrateRun < posWebRun && posCompletion < posWebRun) {
+		t.Errorf("ordering wrong: migrateRun@%d completion@%d webRun@%d", posMigrateRun, posCompletion, posWebRun)
 	}
 }
 

@@ -18,6 +18,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		wait          bool
 		waitTimeout   int
 		pull          string
+		forceRecreate bool
+		noRecreate    bool
 		scaleFlags    []string
 	)
 	cmd := &cobra.Command{
@@ -43,6 +45,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				Wait:          wait,
 				WaitTimeout:   waitTimeout,
 				Pull:          pull,
+				ForceRecreate: forceRecreate,
+				NoRecreate:    noRecreate,
 			})
 		},
 	}
@@ -54,6 +58,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&wait, "wait", false, "Wait for services to be running|healthy")
 	f.IntVar(&waitTimeout, "wait-timeout", 0, "Max seconds to wait for the project to be running|healthy")
 	f.StringVar(&pull, "pull", "policy", `Pull images before running ("always"|"missing"|"never")`)
+	f.BoolVar(&forceRecreate, "force-recreate", false, "Recreate containers even if their configuration hasn't changed")
+	f.BoolVar(&noRecreate, "no-recreate", false, "If containers already exist, don't recreate them")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }

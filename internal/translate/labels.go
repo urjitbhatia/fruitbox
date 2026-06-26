@@ -17,6 +17,9 @@ const (
 	LabelVersion         = "com.docker.compose.version"
 	LabelNetwork         = "com.docker.compose.network"
 	LabelVolume          = "com.docker.compose.volume"
+	// LabelConfigHash records a stable hash of the service's resolved config so
+	// `up` can detect when a service changed and needs recreating.
+	LabelConfigHash = "com.docker.compose.config-hash"
 )
 
 // Version is the fruitbox version reported in resource labels.

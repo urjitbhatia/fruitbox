@@ -58,6 +58,9 @@ type RunOptions struct {
 	// Interactive/TTY wire the container to the terminal (one-off `run`/`exec`).
 	Interactive bool
 	TTY         bool
+	// ConfigHash, when set, is recorded as the config-hash label so `up` can
+	// detect configuration changes and recreate the container.
+	ConfigHash string
 }
 
 // BuildRunArgs converts a resolved compose service into the argument vector for
@@ -233,6 +236,9 @@ func buildLabels(p *composeProject, svc types.ServiceConfig, opts RunOptions) []
 		LabelService:         svc.Name,
 		LabelContainerNumber: strconv.Itoa(opts.Number),
 		LabelOneoff:          boolWord(opts.Oneoff),
+	}
+	if opts.ConfigHash != "" {
+		labels[LabelConfigHash] = opts.ConfigHash
 	}
 	for k, v := range svc.Labels {
 		labels[k] = v

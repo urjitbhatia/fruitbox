@@ -113,3 +113,13 @@ func firstMatch(calls []string, substr string) int {
 	}
 	return -1
 }
+
+func lastMatch(calls []string, substr string) int {
+	idx := -1
+	for i, c := range calls {
+		if strings.Contains(c, substr) {
+			idx = i
+		}
+	}
+	return idx
+}

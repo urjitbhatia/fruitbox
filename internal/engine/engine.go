@@ -82,6 +82,10 @@ type UpOptions struct {
 	Wait bool
 	// WaitTimeout bounds Wait (seconds); 0 means no bound.
 	WaitTimeout int
+	// ForceRecreate recreates containers even if their config is unchanged.
+	ForceRecreate bool
+	// NoRecreate leaves existing containers in place even if their config changed.
+	NoRecreate bool
 }
 
 // effectiveScale returns the replica count for a service, honoring a --scale
@@ -197,8 +201,24 @@ func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.S
 	for _, warning := range translate.UnsupportedWarnings(svc) {
 		e.logf("WARNING: %s: %s", svc.Name, warning)
 	}
+	hash := translate.ServiceConfigHash(svc)
 	replicas := effectiveScale(svc, opts.Scale)
 	for n := 1; n <= replicas; n++ {
+		cname := containerName(p, svc, n)
+		switch e.decideContainer(ctx, cname, hash, opts) {
+		case decisionStart:
+			// Up-to-date container already exists; ensure it is running.
+			e.logf("%s is up-to-date", cname)
+			_, _ = e.Runner.Run(ctx, "start", cname)
+			continue
+		case decisionRecreate:
+			e.logf("Recreating %s", cname)
+			_, _ = e.Runner.Run(ctx, e.stopArgs(p, nameRef{Service: svc.Name, Container: cname})...)
+			_, _ = e.Runner.Run(ctx, "delete", cname)
+		case decisionCreate:
+			// Nothing to remove; fall through to a fresh run.
+		}
+
 		extraMounts, err := e.prepareGeneratedMounts(p, svc, n)
 		if err != nil {
 			return fmt.Errorf("prepare generated files for %s: %w", svc.Name, err)
@@ -207,11 +227,12 @@ func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.S
 			Number:       n,
 			Detach:       opts.Detach,
 			ExtraVolumes: extraMounts,
+			ConfigHash:   hash,
 		})
 		if err != nil {
 			return fmt.Errorf("build run args for %s: %w", svc.Name, err)
 		}
-		e.logf("Starting %s", translate.ContainerName(p.Name, svc.Name, n))
+		e.logf("Starting %s", cname)
 		if _, err := e.Runner.Run(ctx, args...); err != nil {
 			return fmt.Errorf("start %s: %w", svc.Name, err)
 		}

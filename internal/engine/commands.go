@@ -52,6 +52,7 @@ func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOption
 		for _, warning := range translate.UnsupportedWarnings(svc) {
 			e.logf("WARNING: %s: %s", svc.Name, warning)
 		}
+		hash := translate.ServiceConfigHash(svc)
 		for n := 1; n <= effectiveScale(svc, opts.Scale); n++ {
 			mounts, err := e.prepareGeneratedMounts(p, svc, n)
 			if err != nil {
@@ -61,6 +62,7 @@ func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOption
 				Number:       n,
 				Create:       true,
 				ExtraVolumes: mounts,
+				ConfigHash:   hash,
 			})
 			if err != nil {
 				return err
