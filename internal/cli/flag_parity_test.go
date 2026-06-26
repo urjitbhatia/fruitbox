@@ -35,7 +35,7 @@ var knownFlagGaps = map[string][]string{
 	"run":    {"env-from-file", "pull", "quiet", "quiet-build", "quiet-pull", "use-aliases"},
 	"scale":  {"no-deps"},
 	"start":  {"wait", "wait-timeout"},
-	"up":     {"abort-on-container-exit", "abort-on-container-failure", "always-recreate-deps", "attach", "attach-dependencies", "build", "exit-code-from", "force-recreate", "menu", "no-attach", "no-color", "no-deps", "no-log-prefix", "no-recreate", "no-start", "pull", "quiet-build", "quiet-pull", "renew-anon-volumes", "timeout", "timestamps", "wait", "wait-timeout", "watch", "yes"},
+	"up":     {"abort-on-container-exit", "abort-on-container-failure", "always-recreate-deps", "attach", "attach-dependencies", "build", "exit-code-from", "force-recreate", "menu", "no-attach", "no-color", "no-deps", "no-log-prefix", "no-recreate", "quiet-build", "quiet-pull", "renew-anon-volumes", "timeout", "timestamps", "watch", "yes"},
 	"wait":   {"down-project"},
 	"watch":  {"no-up", "prune", "quiet"},
 }

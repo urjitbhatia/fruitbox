@@ -74,6 +74,14 @@ type UpOptions struct {
 	Scale map[string]int
 	// RemoveOrphans removes containers for services not in the compose file.
 	RemoveOrphans bool
+	// NoStart creates containers (and resources) without starting them.
+	NoStart bool
+	// Pull is the pull policy: "always" pulls every image before starting.
+	Pull string
+	// Wait blocks until started services are healthy/running before returning.
+	Wait bool
+	// WaitTimeout bounds Wait (seconds); 0 means no bound.
+	WaitTimeout int
 }
 
 // effectiveScale returns the replica count for a service, honoring a --scale
@@ -95,11 +103,22 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 			return err
 		}
 	}
+	if opts.Pull == "always" {
+		if err := e.Pull(ctx, p, nil); err != nil {
+			return err
+		}
+	}
 	if opts.RemoveOrphans {
 		if err := e.removeOrphans(ctx, p); err != nil {
 			return err
 		}
 	}
+
+	// --no-start: create everything but don't start (delegates to create).
+	if opts.NoStart {
+		return e.Create(ctx, p, opts.Scale)
+	}
+
 	if err := e.ensureNetworks(ctx, p); err != nil {
 		return err
 	}
@@ -124,6 +143,31 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 		}
 		if err := e.startService(ctx, p, svc, opts); err != nil {
 			return err
+		}
+	}
+
+	// --wait: block until every service with a healthcheck reports healthy,
+	// optionally bounded by --wait-timeout.
+	if opts.Wait {
+		waitCtx := ctx
+		if opts.WaitTimeout > 0 {
+			var cancel context.CancelFunc
+			waitCtx, cancel = context.WithTimeout(ctx, time.Duration(opts.WaitTimeout)*time.Second)
+			defer cancel()
+		}
+		for _, name := range order {
+			svc, err := p.GetService(name)
+			if err != nil {
+				return err
+			}
+			if svc.HealthCheck == nil || svc.HealthCheck.Disable {
+				continue
+			}
+			cname := containerName(p, svc, 1)
+			e.logf("Waiting for %s to be healthy", cname)
+			if err := e.waitHealthy(waitCtx, cname, svc.HealthCheck); err != nil {
+				return fmt.Errorf("service %q did not become healthy: %w", name, err)
+			}
 		}
 	}
 

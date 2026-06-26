@@ -14,6 +14,10 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		detach        bool
 		noBuild       bool
 		removeOrphans bool
+		noStart       bool
+		wait          bool
+		waitTimeout   int
+		pull          string
 		scaleFlags    []string
 	)
 	cmd := &cobra.Command{
@@ -35,13 +39,22 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				NoBuild:       noBuild,
 				RemoveOrphans: removeOrphans,
 				Scale:         scale,
+				NoStart:       noStart,
+				Wait:          wait,
+				WaitTimeout:   waitTimeout,
+				Pull:          pull,
 			})
 		},
 	}
-	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "Run containers in the background")
-	cmd.Flags().BoolVar(&noBuild, "no-build", false, "Don't build images, even if they're missing")
-	cmd.Flags().BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
-	cmd.Flags().StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
+	f := cmd.Flags()
+	f.BoolVarP(&detach, "detach", "d", false, "Run containers in the background")
+	f.BoolVar(&noBuild, "no-build", false, "Don't build images, even if they're missing")
+	f.BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
+	f.BoolVar(&noStart, "no-start", false, "Don't start the services after creating them")
+	f.BoolVar(&wait, "wait", false, "Wait for services to be running|healthy")
+	f.IntVar(&waitTimeout, "wait-timeout", 0, "Max seconds to wait for the project to be running|healthy")
+	f.StringVar(&pull, "pull", "policy", `Pull images before running ("always"|"missing"|"never")`)
+	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }
 
