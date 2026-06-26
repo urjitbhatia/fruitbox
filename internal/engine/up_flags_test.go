@@ -92,3 +92,30 @@ func TestUpNoDepsStartsOnlyNamed(t *testing.T) {
 		t.Errorf("up --no-deps must NOT start dependency db, calls: %v", calls)
 	}
 }
+
+func TestUpSkipsExistingNetwork(t *testing.T) {
+	proj := load(t, "basic") // declares network basic_net
+	fake := &runner.Fake{}
+	// The network already exists (inspect returns a payload).
+	fake.On("network inspect basic_net", runner.Result{Stdout: `{"name":"basic_net"}`}, nil)
+	e := New(fake, io.Discard)
+	if err := e.Up(context.Background(), proj, UpOptions{Detach: true}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	// Idempotent: must NOT attempt to create the existing network.
+	if firstMatch(fake.CommandArgs(), "network create") != -1 {
+		t.Errorf("up must skip creating an existing network, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestUpCreatesMissingNetwork(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{} // no inspect mock -> network treated as absent
+	e := New(fake, io.Discard)
+	if err := e.Up(context.Background(), proj, UpOptions{Detach: true}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "network create") == -1 {
+		t.Errorf("up should create a missing network, calls: %v", fake.CommandArgs())
+	}
+}

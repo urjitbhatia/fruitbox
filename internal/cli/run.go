@@ -51,7 +51,7 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 				NoDeps:        noDeps,
 				Name:          name,
 				Interactive:   interactive,
-				TTY:           tty && !noTTY,
+				TTY:           tty && !noTTY && ttyAvailable(),
 				Env:           env,
 				Entrypoint:    entrypoint,
 				EntrypointSet: cmd.Flags().Changed("entrypoint"),

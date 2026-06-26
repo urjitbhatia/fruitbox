@@ -67,11 +67,25 @@ func (e *Exec) Run(ctx context.Context, args ...string) (Result, error) {
 	return res, nil
 }
 
-// RunInteractive implements Runner.
+// RunInteractive implements Runner. Standard output and error are wired to the
+// process streams. Standard input is attached only when it is a terminal: the
+// container runtime rejects some non-terminal stdin devices (ENODEV), and a
+// non-interactive invocation (script/pipe/CI) doesn't need it.
 func (e *Exec) RunInteractive(ctx context.Context, args ...string) error {
 	cmd := exec.CommandContext(ctx, e.Binary, args...)
 	cmd.Stdout = e.Stdout
 	cmd.Stderr = e.Stderr
-	cmd.Stdin = e.Stdin
+	if isTerminal(e.Stdin) {
+		cmd.Stdin = e.Stdin
+	}
 	return cmd.Run()
+}
+
+// isTerminal reports whether f is an interactive character device.
+func isTerminal(f *os.File) bool {
+	if f == nil {
+		return false
+	}
+	fi, err := f.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }

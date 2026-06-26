@@ -172,10 +172,9 @@ func newExecCommand(opts *globalOptions) *cobra.Command {
 		env         []string
 	)
 	cmd := &cobra.Command{
-		Use:                "exec SERVICE COMMAND [ARGS...]",
-		Short:              "Run a command in a running service container",
-		Args:               cobra.MinimumNArgs(2),
-		DisableFlagParsing: false,
+		Use:   "exec SERVICE COMMAND [ARGS...]",
+		Short: "Run a command in a running service container",
+		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			proj, err := opts.load(cmd.Context())
 			if err != nil {
@@ -183,7 +182,7 @@ func newExecCommand(opts *globalOptions) *cobra.Command {
 			}
 			return opts.engine(cmd.OutOrStdout()).Exec(cmd.Context(), proj, args[0], args[1:], engine.ExecOptions{
 				Interactive: interactive,
-				TTY:         tty && !noTTY,
+				TTY:         tty && !noTTY && ttyAvailable(),
 				Detach:      detach,
 				Index:       index,
 				User:        user,
@@ -193,6 +192,9 @@ func newExecCommand(opts *globalOptions) *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
+	// Stop parsing flags at the first positional (SERVICE) so flags meant for
+	// the in-container command (e.g. `exec web nginx -v`) pass through.
+	f.SetInterspersed(false)
 	f.BoolVarP(&interactive, "interactive", "i", true, "Keep STDIN open")
 	f.BoolVarP(&tty, "tty", "t", true, "Allocate a TTY")
 	f.BoolVarP(&noTTY, "no-tty", "T", false, "Disable pseudo-TTY allocation")

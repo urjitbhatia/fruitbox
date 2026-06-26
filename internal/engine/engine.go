@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -212,8 +213,15 @@ func (e *Engine) ensureNetworks(ctx context.Context, p *types.Project) error {
 		if args == nil {
 			continue // external or nothing to create
 		}
+		if e.resourceExists(ctx, "network", net.Name) {
+			continue // already created (idempotent up)
+		}
 		e.logf("Creating network %q", net.Name)
 		if _, err := e.Runner.Run(ctx, args...); err != nil {
+			// Tolerate a concurrent/pre-existing create.
+			if e.resourceExists(ctx, "network", net.Name) {
+				continue
+			}
 			return fmt.Errorf("create network %s: %w", net.Name, err)
 		}
 	}
@@ -227,12 +235,26 @@ func (e *Engine) ensureVolumes(ctx context.Context, p *types.Project) error {
 		if args == nil {
 			continue
 		}
+		if e.resourceExists(ctx, "volume", vol.Name) {
+			continue
+		}
 		e.logf("Creating volume %q", vol.Name)
 		if _, err := e.Runner.Run(ctx, args...); err != nil {
+			if e.resourceExists(ctx, "volume", vol.Name) {
+				continue
+			}
 			return fmt.Errorf("create volume %s: %w", vol.Name, err)
 		}
 	}
 	return nil
+}
+
+// resourceExists reports whether `container <kind> inspect <name>` succeeds
+// with a non-empty payload (a real inspect returns JSON; a missing resource
+// errors).
+func (e *Engine) resourceExists(ctx context.Context, kind, name string) bool {
+	res, err := e.Runner.Run(ctx, kind, "inspect", name)
+	return err == nil && strings.TrimSpace(res.Stdout) != ""
 }
 
 func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.ServiceConfig, opts UpOptions) error {

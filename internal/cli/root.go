@@ -115,6 +115,19 @@ func NewRootCommand() *cobra.Command {
 	return root
 }
 
+// ttyAvailable reports whether a pseudo-TTY can be allocated — i.e. BOTH stdin
+// and stdout are interactive terminals. Like docker compose, fruitbox
+// auto-disables TTY when either is redirected (pipe/file/CI), since the
+// container runtime rejects a TTY without a real terminal on both ends.
+func ttyAvailable() bool {
+	return isCharDevice(os.Stdin) && isCharDevice(os.Stdout)
+}
+
+func isCharDevice(f *os.File) bool {
+	fi, err := f.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
 // Execute runs the root command, returning a process exit code.
 func Execute() int {
 	root := NewRootCommand()
