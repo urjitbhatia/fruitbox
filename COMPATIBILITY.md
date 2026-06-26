@@ -55,20 +55,23 @@ stop, top, unpause, up, version, wait, watch.
 Per-command flag gaps are enforced by `TestFlagParity` (the `knownFlagGaps`
 baseline) and can be regenerated with `scripts/compat-audit.sh`.
 
-**Progress: 138 → 73 recorded gaps (16 of 29 commands at full flag parity).**
+**Progress: 138 → 69 recorded gaps (16 of 29 commands at full flag parity).**
 Fully closed: `version`, `down`, `stop`, `restart`, `kill`, `images`, `scale`,
-`push`, `start`, `wait`, `rm`, `ls`, `ps`. Substantially closed: `run` (18→4),
-`up` (25→21), `exec` (4→1), `pull` (5→1), `create` (8→5), `build` (13→10),
-`logs` (7→5), `events` (3→2), `cp` (3→2), `config`*.
+`push`, `start`, `wait`, `rm`, `ls`, `ps`. Substantially closed: `up` (25→17 —
+now does config-hash-based recreate, service selection, `--no-deps`,
+`--no-start`, `--wait`, `--pull`, `--timeout`), `run` (18→4), `exec` (4→1),
+`pull` (5→1), `create` (8→5), `build` (13→10), `logs` (7→5), `events` (3→2),
+`cp` (3→2), `config`*.
 
 (*config minus digest-pinning/`--variables`, which need registry access.)
 
-Largest remaining gaps: `up` (21 — recreate semantics, foreground attach/log
-formatting), `build` (10 — BuildKit features: `--sbom`/`--provenance`/
-`--builder`/`--check`/`--push`), `logs` (5 — time filters & log formatting),
-`create` (5 — recreate semantics), `run` (4), `config` (4). These are mostly
-features the Apple `container` runtime doesn't expose (recreate diffing, log
-multiplexing, BuildKit attestations) or that need registry access.
+Largest remaining gaps: `up` (17 — foreground attach/log formatting
+`--attach`/`--no-log-prefix`/`--timestamps`, `--abort-on-container-exit`/
+`--exit-code-from`, BuildKit-ish `--quiet-build`), `build` (10 — BuildKit
+`--sbom`/`--provenance`/`--builder`/`--check`/`--push`), `logs` (5 — time
+filters & log formatting), `create` (5 — recreate semantics), `run` (4),
+`config` (4). These are mostly features the Apple `container` runtime doesn't
+expose (log multiplexing, BuildKit attestations) or that need registry access.
 
 ### Priority order for closing flag gaps
 
