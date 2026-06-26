@@ -20,7 +20,7 @@ var knownFlagGaps = map[string][]string{
 	"attach": {"detach-keys", "no-stdin", "sig-proxy"},
 	"build":  {"builder", "check", "memory", "print", "provenance", "push", "quiet", "sbom", "ssh", "with-dependencies"},
 	"config": {"environment", "lock-image-digests", "resolve-image-digests", "variables"},
-	"cp":     {"all", "archive", "follow-link"},
+	"cp":     {"archive", "follow-link"},
 	"create": {"build", "force-recreate", "no-recreate", "quiet-pull", "yes"},
 	"events": {"since", "until"},
 	"exec":   {"privileged"},
@@ -32,7 +32,6 @@ var knownFlagGaps = map[string][]string{
 	"rm":     {"volumes"},
 	"run":    {"env-from-file", "pull", "quiet", "quiet-build", "quiet-pull", "use-aliases"},
 	"up":     {"abort-on-container-exit", "abort-on-container-failure", "always-recreate-deps", "attach", "attach-dependencies", "build", "exit-code-from", "force-recreate", "menu", "no-attach", "no-color", "no-deps", "no-log-prefix", "no-recreate", "quiet-build", "quiet-pull", "renew-anon-volumes", "timeout", "timestamps", "watch", "yes"},
-	"wait":   {"down-project"},
 	"watch":  {"no-up", "prune", "quiet"},
 }
 

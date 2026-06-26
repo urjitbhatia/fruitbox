@@ -42,7 +42,7 @@ func TestCopyResolvesServiceRef(t *testing.T) {
 	e := New(fake, io.Discard)
 
 	// Copy from the web container to a host path.
-	if err := e.Copy(context.Background(), proj, "web:/etc/nginx/nginx.conf", "./out.conf", 1); err != nil {
+	if err := e.Copy(context.Background(), proj, "web:/etc/nginx/nginx.conf", "./out.conf", 1, false); err != nil {
 		t.Fatalf("Copy: %v", err)
 	}
 	calls := fake.CommandArgs()
@@ -61,3 +61,26 @@ func TestParsePort(t *testing.T) {
 		t.Errorf("ParsePort(80) = %d %s, want 80 tcp", port, proto)
 	}
 }
+
+func TestCopyAllReplicas(t *testing.T) {
+	proj := load(t, "basic")
+	web, _ := proj.GetService("web")
+	three := 3
+	web.Scale = &three
+	proj.Services["web"] = web
+
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Copy(context.Background(), proj, "./conf", "web:/etc/conf", 1, true); err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	calls := fake.CommandArgs()
+	for n := 1; n <= 3; n++ {
+		want := "cp ./conf basic-web-" + itoa(n) + ":/etc/conf"
+		if firstMatch(calls, want) == -1 {
+			t.Errorf("--all should copy to replica %d (%q), calls: %v", n, want, calls)
+		}
+	}
+}
+
+func itoa(n int) string { return string(rune('0' + n)) }

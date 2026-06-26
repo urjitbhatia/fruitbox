@@ -81,7 +81,10 @@ func newPortCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newCpCommand(opts *globalOptions) *cobra.Command {
-	var index int
+	var (
+		index int
+		all   bool
+	)
 	cmd := &cobra.Command{
 		Use:   "cp SRC DEST",
 		Short: "Copy files/folders between a container and the local filesystem",
@@ -92,10 +95,11 @@ func newCpCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Copy(cmd.Context(), proj, args[0], args[1], index)
+			return opts.engine(cmd.OutOrStdout()).Copy(cmd.Context(), proj, args[0], args[1], index, all)
 		},
 	}
 	cmd.Flags().IntVar(&index, "index", 1, "Replica index when a service has multiple containers")
+	cmd.Flags().BoolVar(&all, "all", false, "Copy to/from all replicas of the service")
 	return cmd
 }
 

@@ -69,11 +69,30 @@ func (e *Engine) Port(p *types.Project, service string, private int, protocol st
 
 // Copy copies files between the host and a service container. Either src or
 // dest may be of the form "SERVICE:PATH"; that side is resolved to the
-// service's container name before delegating to `container cp`.
-func (e *Engine) Copy(ctx context.Context, p *types.Project, src, dest string, index int) error {
+// service's container name before delegating to `container cp`. When all is
+// set, the copy is applied to every replica of the referenced service.
+func (e *Engine) Copy(ctx context.Context, p *types.Project, src, dest string, index int, all bool) error {
 	if index <= 0 {
 		index = 1
 	}
+	if all {
+		if name := copyServiceSide(p, src, dest); name != "" {
+			svc, err := p.GetService(name)
+			if err != nil {
+				return err
+			}
+			for n := 1; n <= scaleOf(svc); n++ {
+				if err := e.copyOne(ctx, p, src, dest, n); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+	return e.copyOne(ctx, p, src, dest, index)
+}
+
+func (e *Engine) copyOne(ctx context.Context, p *types.Project, src, dest string, index int) error {
 	rsrc, err := e.resolveCopyPath(p, src, index)
 	if err != nil {
 		return err
@@ -84,6 +103,18 @@ func (e *Engine) Copy(ctx context.Context, p *types.Project, src, dest string, i
 	}
 	_, err = e.Runner.Run(ctx, "cp", rsrc, rdest)
 	return err
+}
+
+// copyServiceSide returns the service name referenced by src or dest, or "".
+func copyServiceSide(p *types.Project, src, dest string) string {
+	for _, path := range []string{src, dest} {
+		if prefix, _, ok := strings.Cut(path, ":"); ok {
+			if _, err := p.GetService(prefix); err == nil {
+				return prefix
+			}
+		}
+	}
+	return ""
 }
 
 // resolveCopyPath rewrites a SERVICE:PATH reference to CONTAINER:PATH. Plain

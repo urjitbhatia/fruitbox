@@ -5,6 +5,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/urjitbhatia/fruitbox/internal/engine"
 )
 
 func newLsCommand(opts *globalOptions) *cobra.Command {
@@ -39,6 +40,7 @@ func newLsCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newWaitCommand(opts *globalOptions) *cobra.Command {
+	var downProject bool
 	cmd := &cobra.Command{
 		Use:   "wait [SERVICE...]",
 		Short: "Block until the project's containers stop, then print the exit code",
@@ -47,13 +49,18 @@ func newWaitCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			code, err := opts.engine(cmd.OutOrStdout()).Wait(cmd.Context(), proj, services)
+			e := opts.engine(cmd.OutOrStdout())
+			code, err := e.Wait(cmd.Context(), proj, services)
 			if err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), code)
+			if downProject {
+				return e.Down(cmd.Context(), proj, engine.DownOptions{})
+			}
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&downProject, "down-project", false, "Drop the project after the wait completes")
 	return cmd
 }
