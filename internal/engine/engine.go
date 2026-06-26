@@ -94,6 +94,12 @@ type UpOptions struct {
 	NoDeps bool
 	// Timeout overrides the stop grace period (seconds) when recreating.
 	Timeout *int
+	// AbortOnExit stops all containers (foreground) when any one exits.
+	AbortOnExit bool
+	// AbortOnFailure stops all containers (foreground) when any one fails.
+	AbortOnFailure bool
+	// ExitCodeFrom returns this service's exit code from a foreground up.
+	ExitCodeFrom string
 }
 
 // selectedServices returns the set of service names Up should act on, or nil
@@ -201,7 +207,11 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 	// In foreground mode, block until services stop, honoring restart policies.
 	if !opts.Detach {
 		e.logf("Attached; waiting for services to stop (Ctrl-C to detach)")
-		return e.Supervise(ctx, p, started)
+		return e.Supervise(ctx, p, started, SuperviseOptions{
+			AbortOnExit:    opts.AbortOnExit,
+			AbortOnFailure: opts.AbortOnFailure,
+			ExitCodeFrom:   opts.ExitCodeFrom,
+		})
 	}
 	return nil
 }
@@ -283,9 +293,12 @@ func (e *Engine) startService(ctx context.Context, p *types.Project, svc types.S
 		if err != nil {
 			return fmt.Errorf("prepare generated files for %s: %w", svc.Name, err)
 		}
+		// Containers always run detached; a foreground `up` blocks afterward in
+		// Supervise rather than attaching `container run` (which would serialize
+		// startup and never reach the supervisor).
 		args, err := translate.BuildRunArgs(p, svc, translate.RunOptions{
 			Number:       n,
-			Detach:       opts.Detach,
+			Detach:       true,
 			ExtraVolumes: extraMounts,
 			ConfigHash:   hash,
 		})

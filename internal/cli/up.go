@@ -11,18 +11,21 @@ import (
 
 func newUpCommand(opts *globalOptions) *cobra.Command {
 	var (
-		detach        bool
-		noBuild       bool
-		removeOrphans bool
-		noStart       bool
-		wait          bool
-		waitTimeout   int
-		pull          string
-		forceRecreate bool
-		noRecreate    bool
-		noDeps        bool
-		timeout       int
-		scaleFlags    []string
+		detach         bool
+		noBuild        bool
+		removeOrphans  bool
+		noStart        bool
+		wait           bool
+		waitTimeout    int
+		pull           string
+		forceRecreate  bool
+		noRecreate     bool
+		noDeps         bool
+		timeout        int
+		abortOnExit    bool
+		abortOnFailure bool
+		exitCodeFrom   string
+		scaleFlags     []string
 	)
 	cmd := &cobra.Command{
 		Use:   "up [SERVICE...]",
@@ -37,18 +40,21 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			up := engine.UpOptions{
-				Detach:        detach,
-				NoBuild:       noBuild,
-				RemoveOrphans: removeOrphans,
-				Scale:         scale,
-				NoStart:       noStart,
-				Wait:          wait,
-				WaitTimeout:   waitTimeout,
-				Pull:          pull,
-				ForceRecreate: forceRecreate,
-				NoRecreate:    noRecreate,
-				Services:      services,
-				NoDeps:        noDeps,
+				Detach:         detach,
+				NoBuild:        noBuild,
+				RemoveOrphans:  removeOrphans,
+				Scale:          scale,
+				NoStart:        noStart,
+				Wait:           wait,
+				WaitTimeout:    waitTimeout,
+				Pull:           pull,
+				ForceRecreate:  forceRecreate,
+				NoRecreate:     noRecreate,
+				Services:       services,
+				NoDeps:         noDeps,
+				AbortOnExit:    abortOnExit,
+				AbortOnFailure: abortOnFailure,
+				ExitCodeFrom:   exitCodeFrom,
 			}
 			if cmd.Flags().Changed("timeout") {
 				up.Timeout = &timeout
@@ -68,6 +74,9 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&noRecreate, "no-recreate", false, "If containers already exist, don't recreate them")
 	f.BoolVar(&noDeps, "no-deps", false, "Don't start linked services")
 	f.IntVarP(&timeout, "timeout", "t", 0, "Shutdown timeout in seconds when recreating")
+	f.BoolVar(&abortOnExit, "abort-on-container-exit", false, "Stop all containers if any container stopped")
+	f.BoolVar(&abortOnFailure, "abort-on-container-failure", false, "Stop all containers if any container exited with failure")
+	f.StringVar(&exitCodeFrom, "exit-code-from", "", "Return the exit code of the selected service's container")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }

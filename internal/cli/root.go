@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 
@@ -134,6 +135,11 @@ func Execute() int {
 	root.SetOut(os.Stdout)
 	root.SetErr(os.Stderr)
 	if err := root.Execute(); err != nil {
+		// --exit-code-from / --abort-on-* propagate a container's exit code.
+		var exit engine.ExitError
+		if errors.As(err, &exit) {
+			return exit.Code
+		}
 		root.PrintErrln("Error:", err)
 		return 1
 	}

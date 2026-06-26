@@ -175,6 +175,10 @@ func sortedDepNames(deps types.DependsOnConfig) []string {
 // inspect payload. It returns (stateString, exitCode, done) where done is true
 // only when the container has stopped/exited. The container CLI's exact JSON
 // shape is not assumed; common field names are scanned.
+//
+// NOTE: Apple's container v1.0.0 inspect reports only state ("stopped"), not a
+// process exit code, so exitCode falls back to 0 there. The exit_code parsing
+// remains so fruitbox benefits automatically if a future runtime exposes it.
 func inspectExit(payload string) (string, int, bool) {
 	payload = strings.TrimSpace(payload)
 	if payload == "" {

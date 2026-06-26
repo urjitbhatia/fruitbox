@@ -53,7 +53,7 @@ func TestSuperviseRestartsOnFailureUntilExhausted(t *testing.T) {
 	fake.On("inspect restart-worker-1", runner.Result{Stdout: `[{"status":"exited","exit_code":1}]`}, nil)
 	e := newTestEngine(fake)
 
-	if err := e.Supervise(context.Background(), proj, nil); err != nil {
+	if err := e.Supervise(context.Background(), proj, nil, SuperviseOptions{}); err != nil {
 		t.Fatalf("Supervise: %v", err)
 	}
 	// on-failure:1 means exactly one restart, then give up.
@@ -69,7 +69,7 @@ func TestSuperviseNoPolicyReturnsWhenStopped(t *testing.T) {
 	e := newTestEngine(fake)
 
 	// Should return promptly without restarting anything.
-	if err := e.Supervise(context.Background(), proj, nil); err != nil {
+	if err := e.Supervise(context.Background(), proj, nil, SuperviseOptions{}); err != nil {
 		t.Fatalf("Supervise: %v", err)
 	}
 	if got := fake.CountMatching("start "); got != 0 {
