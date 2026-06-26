@@ -66,10 +66,10 @@ named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
 | `fruitbox push [svc...]` | ✅ push service images to registries |
 | `fruitbox scale SERVICE=N` | ✅ scale services up/down |
 | `fruitbox attach SERVICE` | ✅ attach to a container's I/O |
+| `fruitbox events` | ✅ stream lifecycle events (synthesized from runtime state) |
 | `fruitbox version` | ✅ |
 
-This is full `docker compose` command parity except `events` and `watch`
-(see Roadmap).
+This is full `docker compose` command parity except `watch` (see Roadmap).
 
 `up` supports `-d`, `--no-build`, `--scale SERVICE=N`, `--remove-orphans`.
 `depends_on` conditions (`service_healthy`, `service_completed_successfully`)
@@ -131,8 +131,7 @@ treats `version` as obsolete-but-tolerated, exactly like `docker compose`.
 
 ## Roadmap
 
-- `events` stream (synthesizable by polling/diffing runtime state)
-- `watch` dev-mode file sync (Compose `develop.watch`)
+- `watch` dev-mode file sync (Compose `develop.watch`) — needs a host fs-watcher
 - live `ps` enrichment via `container ls` label queries
 
 ## Requirements

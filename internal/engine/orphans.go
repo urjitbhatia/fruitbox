@@ -13,6 +13,7 @@ import (
 type listedContainer struct {
 	Name    string
 	Labels  map[string]string
+	status  string
 	project string
 	service string
 }
@@ -72,6 +73,7 @@ func parseContainerList(payload string) []listedContainer {
 		c := listedContainer{
 			Name:   findString(m, "name", "Name", "id", "ID"),
 			Labels: extractLabels(m),
+			status: findString(m, "status", "Status", "state", "State"),
 		}
 		c.project = c.Labels[translate.LabelProject]
 		c.service = c.Labels[translate.LabelService]

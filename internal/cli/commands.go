@@ -82,6 +82,23 @@ func newScaleCommand(opts *globalOptions) *cobra.Command {
 	return cmd
 }
 
+func newEventsCommand(opts *globalOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "events",
+		Short: "Stream container lifecycle events for the project",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			proj, err := opts.load(cmd.Context())
+			if err != nil {
+				return err
+			}
+			// 0 = stream until interrupted.
+			return opts.engine(cmd.OutOrStdout()).Events(cmd.Context(), proj, 0)
+		},
+	}
+	return cmd
+}
+
 func newAttachCommand(opts *globalOptions) *cobra.Command {
 	var index int
 	cmd := &cobra.Command{
