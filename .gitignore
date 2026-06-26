@@ -1,0 +1,11 @@
+# Binaries
+/fruitbox
+/dist/
+*.test
+*.out
+
+# Go
+/vendor/
+
+# macOS
+.DS_Store
