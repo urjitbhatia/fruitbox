@@ -76,8 +76,9 @@ func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOption
 
 // RmOptions controls Rm.
 type RmOptions struct {
-	Force bool // also remove running containers
-	Stop  bool // stop containers before removing
+	Force   bool // also remove running containers
+	Stop    bool // stop containers before removing
+	Volumes bool // also remove anonymous volumes attached to the containers
 }
 
 // Rm removes stopped service containers (compose `rm`).
@@ -93,6 +94,9 @@ func (e *Engine) Rm(ctx context.Context, p *types.Project, names []string, opts 
 		args := []string{"delete"}
 		if opts.Force {
 			args = append(args, "--force")
+		}
+		if opts.Volumes {
+			args = append(args, "--volumes")
 		}
 		args = append(args, refs[i].Container)
 		e.logf("Removing %s", refs[i].Container)

@@ -43,8 +43,9 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 
 func newRmCommand(opts *globalOptions) *cobra.Command {
 	var (
-		force bool
-		stop  bool
+		force   bool
+		stop    bool
+		volumes bool
 	)
 	cmd := &cobra.Command{
 		Use:   "rm [SERVICE...]",
@@ -54,11 +55,12 @@ func newRmCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Rm(cmd.Context(), proj, services, engine.RmOptions{Force: force, Stop: stop})
+			return opts.engine(cmd.OutOrStdout()).Rm(cmd.Context(), proj, services, engine.RmOptions{Force: force, Stop: stop, Volumes: volumes})
 		},
 	}
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Don't ask to confirm removal")
 	cmd.Flags().BoolVarP(&stop, "stop", "s", false, "Stop the containers before removing")
+	cmd.Flags().BoolVarP(&volumes, "volumes", "v", false, "Remove any anonymous volumes attached to containers")
 	return cmd
 }
 

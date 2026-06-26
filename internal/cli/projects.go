@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"text/tabwriter"
 
@@ -9,7 +10,10 @@ import (
 )
 
 func newLsCommand(opts *globalOptions) *cobra.Command {
-	var quiet bool
+	var (
+		quiet  bool
+		format string
+	)
 	cmd := &cobra.Command{
 		Use:   "ls",
 		Short: "List running compose projects",
@@ -21,21 +25,28 @@ func newLsCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if quiet {
+			switch {
+			case quiet:
 				for _, p := range projects {
 					fmt.Fprintln(cmd.OutOrStdout(), p.Name)
 				}
 				return nil
+			case format == "json":
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				return enc.Encode(projects)
+			default:
+				w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
+				fmt.Fprintln(w, "NAME\tCONTAINERS")
+				for _, p := range projects {
+					fmt.Fprintf(w, "%s\t%d\n", p.Name, p.ContainerCount)
+				}
+				return w.Flush()
 			}
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
-			fmt.Fprintln(w, "NAME\tCONTAINERS")
-			for _, p := range projects {
-				fmt.Fprintf(w, "%s\t%d\n", p.Name, p.ContainerCount)
-			}
-			return w.Flush()
 		},
 	}
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Only display project names")
+	cmd.Flags().StringVar(&format, "format", "table", "Format output: table or json")
 	return cmd
 }
 

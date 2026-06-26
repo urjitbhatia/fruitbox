@@ -119,3 +119,15 @@ func TestCreateRemoveOrphans(t *testing.T) {
 		t.Errorf("create --remove-orphans should remove orphan, calls: %v", fake.CommandArgs())
 	}
 }
+
+func TestRmVolumes(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Rm(context.Background(), proj, []string{"web"}, RmOptions{Force: true, Volumes: true}); err != nil {
+		t.Fatalf("Rm: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "delete --force --volumes basic-web-1") == -1 {
+		t.Errorf("rm -v should pass --volumes, calls: %v", fake.CommandArgs())
+	}
+}
