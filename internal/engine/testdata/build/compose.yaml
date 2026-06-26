@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.prod
+      target: runtime
+      args:
+        VERSION: "1.2.3"
+    ports:
+      - "3000:3000"
+  worker:
+    image: myorg/worker:latest
+    build: ./worker

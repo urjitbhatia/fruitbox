@@ -6,7 +6,10 @@ import (
 )
 
 func newUpCommand(opts *globalOptions) *cobra.Command {
-	var detach bool
+	var (
+		detach  bool
+		noBuild bool
+	)
 	cmd := &cobra.Command{
 		Use:   "up",
 		Short: "Create and start the project's containers",
@@ -17,10 +20,11 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			e := opts.engine(cmd.OutOrStdout())
-			return e.Up(cmd.Context(), proj, engine.UpOptions{Detach: detach})
+			return e.Up(cmd.Context(), proj, engine.UpOptions{Detach: detach, NoBuild: noBuild})
 		},
 	}
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "Run containers in the background")
+	cmd.Flags().BoolVar(&noBuild, "no-build", false, "Don't build images, even if they're missing")
 	return cmd
 }
 

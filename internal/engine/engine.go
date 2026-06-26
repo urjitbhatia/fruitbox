@@ -27,11 +27,18 @@ func New(r runner.Runner, out io.Writer) *Engine {
 type UpOptions struct {
 	// Detach starts service containers in the background.
 	Detach bool
+	// NoBuild skips building images for services with a build section.
+	NoBuild bool
 }
 
 // Up creates the project's networks and volumes, then starts every service
-// container in dependency order.
+// container in dependency order. Services with a build section are built first.
 func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error {
+	if !opts.NoBuild {
+		if err := e.Build(ctx, p, nil); err != nil {
+			return err
+		}
+	}
 	if err := e.ensureNetworks(ctx, p); err != nil {
 		return err
 	}

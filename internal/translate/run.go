@@ -50,8 +50,12 @@ type RunOptions struct {
 // subcommand and ends with the image and command, ready to be passed to the
 // container CLI.
 func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) ([]string, error) {
-	if svc.Image == "" {
-		return nil, fmt.Errorf("service %q has no image; build is not yet supported", svc.Name)
+	image := svc.Image
+	if image == "" && svc.Build != nil {
+		image = BuildImageTag(p.Name, svc)
+	}
+	if image == "" {
+		return nil, fmt.Errorf("service %q has neither image nor build", svc.Name)
 	}
 
 	verb := "run"
@@ -163,7 +167,7 @@ func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) (
 	}
 
 	// Image and command.
-	args = append(args, svc.Image)
+	args = append(args, image)
 	args = append(args, entrypointRest...)
 	args = append(args, svc.Command...)
 
