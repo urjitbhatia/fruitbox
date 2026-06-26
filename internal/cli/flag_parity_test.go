@@ -25,7 +25,7 @@ var knownFlagGaps = map[string][]string{
 	"events": {"json", "since", "until"},
 	"exec":   {"detach", "index", "no-tty", "privileged"},
 	"images": {"format"},
-	"logs":   {"index", "no-color", "no-log-prefix", "since", "tail", "timestamps", "until"},
+	"logs":   {"no-color", "no-log-prefix", "since", "timestamps", "until"},
 	"ls":     {"all", "filter", "format"},
 	"port":   {"index"},
 	"ps":     {"all", "filter", "format", "no-trunc", "orphans", "services", "status"},
