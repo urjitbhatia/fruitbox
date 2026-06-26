@@ -178,6 +178,19 @@ func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) (
 		args = append(args, "--tmpfs", t)
 	}
 
+	// Secrets and configs are exposed as read-only bind mounts of their source
+	// files, since the runtime has no native secret/config store.
+	for _, sec := range svc.Secrets {
+		if mnt, ok := fileObjectMount(p.Secrets[sec.Source].File, secretTarget(sec)); ok {
+			args = append(args, "--volume", mnt)
+		}
+	}
+	for _, cfg := range svc.Configs {
+		if mnt, ok := fileObjectMount(p.Configs[cfg.Source].File, configTarget(cfg)); ok {
+			args = append(args, "--volume", mnt)
+		}
+	}
+
 	// Labels: compose identity labels plus user-defined labels, all sorted.
 	for _, l := range buildLabels(p, svc, opts) {
 		args = append(args, "--label", l)
@@ -280,6 +293,40 @@ func formatVolume(p *composeProject, vol types.ServiceVolumeConfig) (flag, value
 	default:
 		return "", "", fmt.Errorf("unsupported volume type %q on mount %q", vol.Type, vol.Target)
 	}
+}
+
+// fileObjectMount builds a read-only bind mount "host:target:ro" for a
+// file-backed secret/config. It returns ok=false when there is no source file
+// (e.g. environment- or content-backed objects, which can't be bind-mounted).
+func fileObjectMount(hostFile, target string) (string, bool) {
+	if hostFile == "" || target == "" {
+		return "", false
+	}
+	return hostFile + ":" + target + ":ro", true
+}
+
+// secretTarget resolves the in-container path for a secret reference. Per the
+// Compose spec, secrets default to /run/secrets/<source>; a bare target name is
+// placed under /run/secrets/, while an absolute target is used verbatim.
+func secretTarget(sec types.ServiceSecretConfig) string {
+	t := sec.Target
+	if t == "" {
+		return "/run/secrets/" + sec.Source
+	}
+	if strings.HasPrefix(t, "/") {
+		return t
+	}
+	return "/run/secrets/" + t
+}
+
+// configTarget resolves the in-container path for a config reference. Configs
+// default to /<source> at the container root.
+func configTarget(cfg types.ServiceConfigObjConfig) string {
+	t := cfg.Target
+	if t == "" {
+		return "/" + cfg.Source
+	}
+	return t
 }
 
 // formatUlimit renders a ulimit as "name=value" or "name=soft:hard".

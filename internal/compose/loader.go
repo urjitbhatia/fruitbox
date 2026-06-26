@@ -7,6 +7,7 @@ package compose
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/compose-spec/compose-go/v2/cli"
 	"github.com/compose-spec/compose-go/v2/types"
@@ -35,6 +36,18 @@ type LoadOptions struct {
 // canonical compose-go project model with services, networks, volumes,
 // configs and secrets fully resolved.
 func Load(ctx context.Context, opts LoadOptions) (*types.Project, error) {
+	// Resolve config paths to absolute so that relative references inside the
+	// compose files (e.g. secret/config `file:` paths, build contexts) resolve
+	// against the compose file's directory regardless of the process cwd.
+	configPaths := make([]string, 0, len(opts.ConfigPaths))
+	for _, p := range opts.ConfigPaths {
+		if abs, err := filepath.Abs(p); err == nil {
+			configPaths = append(configPaths, abs)
+		} else {
+			configPaths = append(configPaths, p)
+		}
+	}
+
 	projectOpts := []cli.ProjectOptionsFn{
 		cli.WithWorkingDirectory(opts.WorkingDir),
 		// Resolve the working directory before discovering config files so
@@ -57,7 +70,7 @@ func Load(ctx context.Context, opts LoadOptions) (*types.Project, error) {
 		projectOpts = append(projectOpts, cli.WithProfiles(opts.Profiles))
 	}
 
-	options, err := cli.NewProjectOptions(opts.ConfigPaths, projectOpts...)
+	options, err := cli.NewProjectOptions(configPaths, projectOpts...)
 	if err != nil {
 		return nil, err
 	}
