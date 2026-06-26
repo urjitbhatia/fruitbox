@@ -61,15 +61,16 @@ func (e *Engine) Start(ctx context.Context, p *types.Project, names []string) er
 }
 
 // Stop stops running containers for the named services without removing them,
-// honoring each service's stop_signal and stop_grace_period.
-func (e *Engine) Stop(ctx context.Context, p *types.Project, names []string) error {
+// honoring each service's stop_signal and stop_grace_period. A non-nil timeout
+// overrides the grace period (--time).
+func (e *Engine) Stop(ctx context.Context, p *types.Project, names []string, timeout *int) error {
 	refs, err := e.containerNames(p, names)
 	if err != nil {
 		return err
 	}
 	// Reverse order for a graceful shutdown.
 	for i := len(refs) - 1; i >= 0; i-- {
-		_, _ = e.Runner.Run(ctx, e.stopArgs(p, refs[i])...)
+		_, _ = e.Runner.Run(ctx, e.stopArgsTimeout(p, refs[i], timeout)...)
 		e.logf("Stopping %s", refs[i].Container)
 	}
 	return nil
@@ -100,16 +101,18 @@ func (e *Engine) stopArgsTimeout(p *types.Project, r nameRef, override *int) []s
 	return append(args, r.Container)
 }
 
-// Restart restarts containers for the named services (stop then start).
-func (e *Engine) Restart(ctx context.Context, p *types.Project, names []string) error {
-	if err := e.Stop(ctx, p, names); err != nil {
+// Restart restarts containers for the named services (stop then start). A
+// non-nil timeout overrides the stop grace period.
+func (e *Engine) Restart(ctx context.Context, p *types.Project, names []string, timeout *int) error {
+	if err := e.Stop(ctx, p, names, timeout); err != nil {
 		return err
 	}
 	return e.Start(ctx, p, names)
 }
 
-// Kill sends a signal to the named services' containers (default SIGKILL).
-func (e *Engine) Kill(ctx context.Context, p *types.Project, names []string, signal string) error {
+// Kill sends a signal to the named services' containers (default SIGKILL),
+// optionally also removing orphan containers afterward.
+func (e *Engine) Kill(ctx context.Context, p *types.Project, names []string, signal string, removeOrphans bool) error {
 	refs, err := e.containerNames(p, names)
 	if err != nil {
 		return err
@@ -122,6 +125,9 @@ func (e *Engine) Kill(ctx context.Context, p *types.Project, names []string, sig
 		args = append(args, refs[i].Container)
 		e.logf("Killing %s", refs[i].Container)
 		_, _ = e.Runner.Run(ctx, args...)
+	}
+	if removeOrphans {
+		return e.removeOrphans(ctx, p)
 	}
 	return nil
 }

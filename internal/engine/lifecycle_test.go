@@ -53,7 +53,7 @@ func TestStopReverseOrder(t *testing.T) {
 	proj := load(t, "basic")
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
-	if err := e.Stop(context.Background(), proj, nil); err != nil {
+	if err := e.Stop(context.Background(), proj, nil, nil); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
 	calls := fake.CommandArgs()
@@ -82,7 +82,7 @@ func TestKillPassesSignal(t *testing.T) {
 	proj := load(t, "basic")
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
-	if err := e.Kill(context.Background(), proj, []string{"web"}, "SIGTERM"); err != nil {
+	if err := e.Kill(context.Background(), proj, []string{"web"}, "SIGTERM", false); err != nil {
 		t.Fatalf("Kill: %v", err)
 	}
 	calls := fake.CommandArgs()

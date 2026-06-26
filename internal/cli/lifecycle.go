@@ -34,7 +34,8 @@ func newStartCommand(opts *globalOptions) *cobra.Command {
 }
 
 func newStopCommand(opts *globalOptions) *cobra.Command {
-	return &cobra.Command{
+	var timeout int
+	cmd := &cobra.Command{
 		Use:   "stop [SERVICE...]",
 		Short: "Stop running containers without removing them",
 		RunE: func(cmd *cobra.Command, services []string) error {
@@ -42,13 +43,19 @@ func newStopCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Stop(cmd.Context(), proj, services)
+			return opts.engine(cmd.OutOrStdout()).Stop(cmd.Context(), proj, services, timeoutPtr(cmd))
 		},
 	}
+	cmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "Shutdown timeout in seconds")
+	return cmd
 }
 
 func newRestartCommand(opts *globalOptions) *cobra.Command {
-	return &cobra.Command{
+	var (
+		timeout int
+		noDeps  bool
+	)
+	cmd := &cobra.Command{
 		Use:   "restart [SERVICE...]",
 		Short: "Restart service containers",
 		RunE: func(cmd *cobra.Command, services []string) error {
@@ -56,13 +63,22 @@ func newRestartCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Restart(cmd.Context(), proj, services)
+			// restart only touches the named services already, so --no-deps is
+			// the effective default; the flag is accepted for compatibility.
+			_ = noDeps
+			return opts.engine(cmd.OutOrStdout()).Restart(cmd.Context(), proj, services, timeoutPtr(cmd))
 		},
 	}
+	cmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "Shutdown timeout in seconds")
+	cmd.Flags().BoolVar(&noDeps, "no-deps", false, "Don't restart dependent services")
+	return cmd
 }
 
 func newKillCommand(opts *globalOptions) *cobra.Command {
-	var signal string
+	var (
+		signal        string
+		removeOrphans bool
+	)
 	cmd := &cobra.Command{
 		Use:   "kill [SERVICE...]",
 		Short: "Force-stop service containers by sending a signal",
@@ -71,11 +87,22 @@ func newKillCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Kill(cmd.Context(), proj, services, signal)
+			return opts.engine(cmd.OutOrStdout()).Kill(cmd.Context(), proj, services, signal, removeOrphans)
 		},
 	}
 	cmd.Flags().StringVarP(&signal, "signal", "s", "", "Signal to send (default SIGKILL)")
+	cmd.Flags().BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not in the Compose file")
 	return cmd
+}
+
+// timeoutPtr returns a pointer to the --timeout value only if the flag was set,
+// so an unset flag leaves per-service stop_grace_period in effect.
+func timeoutPtr(cmd *cobra.Command) *int {
+	if !cmd.Flags().Changed("timeout") {
+		return nil
+	}
+	v, _ := cmd.Flags().GetInt("timeout")
+	return &v
 }
 
 func newPullCommand(opts *globalOptions) *cobra.Command {

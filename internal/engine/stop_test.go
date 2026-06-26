@@ -30,7 +30,7 @@ func TestStopAppliesSignalAndGrace(t *testing.T) {
 	fake := &runner.Fake{}
 	e := New(fake, io.Discard)
 
-	if err := e.Stop(context.Background(), proj, nil); err != nil {
+	if err := e.Stop(context.Background(), proj, nil, nil); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
 	calls := fake.CommandArgs()
