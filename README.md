@@ -94,8 +94,20 @@ go build ./cmd/fruitbox      # build the binary
 go test ./...                # run the test suite (no container binary needed)
 ```
 
-The test suite is hermetic: translation and orchestration are tested against a
+The unit suite is hermetic: translation and orchestration are tested against a
 fake runner, so no `container` install is required to develop fruitbox.
+
+There is also an **integration lane** that drives the built binary against the
+real Apple `container` runtime (full `up` → `ps` → `logs` → `exec` → recreate →
+`down` lifecycle, including port publishing and config-hash recreate). It is
+build-tagged and skips automatically when the runtime is unavailable:
+
+```
+make test-integration      # go test -tags=integration ./test/integration/...
+```
+
+A reproducible `docker compose` flag-compatibility audit is available via
+`make compat` (see `COMPATIBILITY.md`).
 
 ## Restart policies
 
