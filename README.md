@@ -86,10 +86,17 @@ go test ./...                # run the test suite (no container binary needed)
 The test suite is hermetic: translation and orchestration are tested against a
 fake runner, so no `container` install is required to develop fruitbox.
 
+## Restart policies
+
+A foreground `fruitbox up` (without `-d`) supervises the project: it blocks
+until services stop and restarts containers per their `restart:` policy
+(`no` / `always` / `unless-stopped` / `on-failure[:max]`, plus
+`deploy.restart_policy`). Since Apple's runtime has no restart-policy daemon,
+fruitbox performs supervision itself.
+
 ## Roadmap
 
 - `top` / `events`
-- restart-policy supervision (`restart: always|on-failure`) via a fruitbox daemon
 - live `ps` enrichment via `container ls` label queries
 - runtime gaps Apple `container` can't express today (`hostname`, `extra_hosts`,
   `privileged`, `mac_address`, `sysctls`, `devices`) — currently warned, not dropped silently

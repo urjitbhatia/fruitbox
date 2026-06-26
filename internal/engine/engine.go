@@ -123,6 +123,12 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 			return err
 		}
 	}
+
+	// In foreground mode, block until services stop, honoring restart policies.
+	if !opts.Detach {
+		e.logf("Attached; waiting for services to stop (Ctrl-C to detach)")
+		return e.Supervise(ctx, p, nil)
+	}
 	return nil
 }
 

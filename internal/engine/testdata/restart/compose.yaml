@@ -1,0 +1,4 @@
+services:
+  worker:
+    image: myorg/worker:latest
+    restart: on-failure:1
