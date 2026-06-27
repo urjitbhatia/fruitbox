@@ -36,8 +36,10 @@ fruitbox then owns translation and orchestration:
 | `internal/engine` | Orchestration: dependency ordering, up / down / ps / logs |
 | `internal/cli` | Cobra command tree mirroring `docker compose` |
 
-Resources carry the canonical `com.docker.compose.*` labels and containers are
-named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
+Resources carry the canonical `com.docker.compose.*` labels **and** a
+fruitbox-native `io.fruitbox.*` mirror, and containers are named
+`<project>-<service>-<n>` — so inspection and grouping stay compatible with
+Docker tooling while also giving a path out of the Docker ecosystem.
 
 ## Commands
 
@@ -68,6 +70,9 @@ named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
 | `fruitbox attach SERVICE` | ✅ attach to a container's I/O |
 | `fruitbox events` | ✅ stream lifecycle events (synthesized from runtime state) |
 | `fruitbox watch` | ✅ sync/restart/rebuild on source change (`develop.watch`) |
+| `fruitbox volumes [-q]` | ✅ list the project's volumes |
+| `fruitbox stats [--no-stream]` | ✅ live resource usage (`container stats`) |
+| `fruitbox export SERVICE -o f` | ✅ export a container filesystem to a tar |
 | `fruitbox version` | ✅ |
 
 **32 `docker compose` commands implemented** (all but `commit`/`publish`/`bridge`, which have no Apple `container` equivalent). Every flag the runtime can support is implemented; see [COMPATIBILITY.md](./COMPATIBILITY.md).
