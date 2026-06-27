@@ -145,6 +145,7 @@ func newPullCommand(opts *globalOptions) *cobra.Command {
 		includeDeps     bool
 		ignoreFailures  bool
 		ignoreBuildable bool
+		policy          string
 	)
 	cmd := &cobra.Command{
 		Use:   "pull [SERVICE...]",
@@ -159,6 +160,7 @@ func newPullCommand(opts *globalOptions) *cobra.Command {
 				IncludeDeps:     includeDeps,
 				IgnoreFailures:  ignoreFailures,
 				IgnoreBuildable: ignoreBuildable,
+				Policy:          policy,
 			})
 		},
 	}
@@ -167,6 +169,7 @@ func newPullCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&includeDeps, "include-deps", false, "Also pull services declared as dependencies")
 	f.BoolVar(&ignoreFailures, "ignore-pull-failures", false, "Pull what it can and ignore images with pull failures")
 	f.BoolVar(&ignoreBuildable, "ignore-buildable", false, "Ignore images that can be built")
+	f.StringVar(&policy, "policy", "", `Apply pull policy ("missing"|"always"|"never")`)
 	return cmd
 }
 

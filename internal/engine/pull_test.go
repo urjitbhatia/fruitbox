@@ -69,3 +69,15 @@ func TestPushIncludeDeps(t *testing.T) {
 		t.Errorf("--include-deps should push web and db, calls: %v", calls)
 	}
 }
+
+func TestPullPolicyNeverSkips(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Pull(context.Background(), proj, nil, PullOptions{Policy: "never"}); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "image pull") != -1 {
+		t.Errorf("--policy never should skip pulling, calls: %v", fake.CommandArgs())
+	}
+}

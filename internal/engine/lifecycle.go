@@ -172,14 +172,18 @@ func (e *Engine) Kill(ctx context.Context, p *types.Project, names []string, sig
 
 // PullOptions controls Pull.
 type PullOptions struct {
-	Quiet           bool // suppress progress logs
-	IncludeDeps     bool // also pull transitive dependencies of the named services
-	IgnoreFailures  bool // continue when an individual pull fails
-	IgnoreBuildable bool // skip services that have a build section
+	Quiet           bool   // suppress progress logs
+	IncludeDeps     bool   // also pull transitive dependencies of the named services
+	IgnoreFailures  bool   // continue when an individual pull fails
+	IgnoreBuildable bool   // skip services that have a build section
+	Policy          string // pull policy: "never" skips; "always"/"missing"/"" pull
 }
 
 // Pull pulls the images referenced by the named services (or all services).
 func (e *Engine) Pull(ctx context.Context, p *types.Project, names []string, opts PullOptions) error {
+	if opts.Policy == "never" {
+		return nil
+	}
 	if len(names) == 0 {
 		names = p.ServiceNames()
 	}
