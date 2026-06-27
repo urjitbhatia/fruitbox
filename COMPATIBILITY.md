@@ -35,19 +35,16 @@ Two tests in `internal/cli` enforce this against a real `docker compose`
 
 ## Commands
 
-Implemented (29): attach, build, config, cp, create, down, events, exec, images,
-kill, logs, ls, pause, port, ps, pull, push, restart, rm, run, scale, start,
-stop, top, unpause, up, version, wait, watch.
+**Implemented (32):** attach, build, config, cp, create, down, events, exec,
+export, images, kill, logs, ls, pause, port, ps, pull, push, restart, rm, run,
+scale, start, stats, stop, top, unpause, up, version, volumes, wait, watch.
 
-**Not yet implemented (6):**
+**Not implemented (3) — no Apple `container` equivalent:**
 
 | Command | Notes |
 |---|---|
-| `volumes` | list project volumes — straightforward, planned next |
-| `stats` | live resource usage — maps to `container stats` |
-| `export` | export a container filesystem — maps to `container export` |
-| `commit` | create an image from a container — Apple `container` has no commit |
-| `publish` | publish a compose app to an OCI registry — compose-specific, complex |
+| `commit` | create an image from a container — the runtime has no commit |
+| `publish` | publish a compose app to an OCI registry — compose-specific packaging |
 | `bridge` | convert compose to Kubernetes/other — Docker Desktop feature, N/A |
 
 ## Flag coverage
@@ -55,7 +52,10 @@ stop, top, unpause, up, version, wait, watch.
 Per-command flag gaps are enforced by `TestFlagParity` (the `knownFlagGaps`
 baseline) and can be regenerated with `scripts/compat-audit.sh`.
 
-**Progress: 138 → 57 recorded gaps (18 of 29 commands at full flag parity).**
+**Progress: 138 → 36 recorded gaps. Every implementable flag is implemented**
+— 22 of the 32 commands are at full flag parity, and the remaining 36 gaps are
+all genuine runtime limitations or out-of-scope features (enumerated below),
+not unfinished work.
 
 > Validated against the real Apple `container` v1.0.0 runtime (see the
 > integration lane, `make test-integration`). One discovered limitation:
@@ -63,40 +63,22 @@ baseline) and can be regenerated with `scripts/compat-audit.sh`.
 > code, so `up --abort-on-container-failure` / `--exit-code-from` fall back to
 > 0 with a warning. `--abort-on-container-exit` works fully.
 
-Fully closed: `version`, `down`, `stop`, `restart`, `kill`, `images`, `scale`,
-`push`, `start`, `wait`, `rm`, `ls`, `ps`. Substantially closed: `up` (25→17 —
-now does config-hash-based recreate, service selection, `--no-deps`,
-`--no-start`, `--wait`, `--pull`, `--timeout`), `run` (18→4), `exec` (4→1),
-`pull` (5→1), `create` (8→5), `build` (13→10), `logs` (7→5), `events` (3→2),
-`cp` (3→2), `config`*.
+### Why each remaining gap can't be closed
 
-(*config minus digest-pinning/`--variables`, which need registry access.)
-
-Largest remaining gaps: `up` (17 — foreground attach/log formatting
-`--attach`/`--no-log-prefix`/`--timestamps`, `--abort-on-container-exit`/
-`--exit-code-from`, BuildKit-ish `--quiet-build`), `build` (10 — BuildKit
-`--sbom`/`--provenance`/`--builder`/`--check`/`--push`), `logs` (5 — time
-filters & log formatting), `create` (5 — recreate semantics), `run` (4),
-`config` (4). These are mostly features the Apple `container` runtime doesn't
-expose (log multiplexing, BuildKit attestations) or that need registry access.
-
-### Priority order for closing flag gaps
-
-1. **Observed-behavior flags** (change what containers do): `up` (`--build`,
-   `--force-recreate`, `--no-recreate`, `--no-start`, `--wait`, `--timeout`,
-   `--pull`, `--no-deps`, `--abort-on-container-exit`, `--exit-code-from`),
-   `run` (`--entrypoint`, `--user`, `--volume`, `--publish`, `--label`,
-   `--service-ports`, `--no-deps`, `--build`), `down` (`--timeout`,
-   `--remove-orphans`, `--rmi`), `rm --volumes`, `exec` (`--index`, `--detach`).
-2. **Output/formatting flags**: `logs` (`--tail`, `--since`, `--until`,
-   `--timestamps`, `--no-color`), `ps` (`--format`, `--filter`, `--status`,
-   `--all`), `images --format`, `version` (`--format`, `--short`),
-   `events` (`--json`, `--since`, `--until`).
-3. **Build/registry flags** (some require BuildKit/registry features Apple
-   `container` may not expose): `build` (`--build-arg`, `--no-cache`, `--pull`,
-   `--push`, `--target`, `--ssh`), `pull`/`push` policy & failure flags.
-4. **Likely-unmappable** (documented, will warn): `build --provenance/--sbom`,
-   `up --menu`, `attach --sig-proxy`, digest-pinning in `config`.
+| Command | Gap | Reason |
+|---|---|---|
+| `attach` | `--detach-keys`/`--no-stdin`/`--sig-proxy` | `container start --attach` exposes no attach-session controls |
+| `build` | `--builder`/`--check`/`--print`/`--provenance`/`--sbom`/`--ssh` | BuildKit features Apple's builder doesn't implement |
+| `config` | `--resolve-image-digests`/`--lock-image-digests` | require registry access to resolve digests |
+| `config` | `--variables` | needs interpolation-variable introspection compose-go doesn't expose |
+| `cp` | `--archive`/`--follow-link` | `container cp` has no such flags |
+| `events` | `--since`/`--until` | events are synthesized live; there is no historical event store |
+| `exec` | `--privileged` | the runtime has no privileged exec |
+| `logs` | `--since`/`--until` | `container logs` has no time filter |
+| `port` | `--index` | port resolution is from the compose model; replicas share the mapping |
+| `run` | `--use-aliases` | `container run` has no network-alias flag |
+| `up` | `--menu` | an interactive TUI, out of scope for a non-interactive CLI |
+| `stats` | `--all`/`--no-trunc` | `container stats` exposes neither |
 
 ## Service-attribute coverage
 

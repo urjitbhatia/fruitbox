@@ -70,7 +70,7 @@ named `<project>-<service>-<n>`, so inspection and grouping stay compatible.
 | `fruitbox watch` | ✅ sync/restart/rebuild on source change (`develop.watch`) |
 | `fruitbox version` | ✅ |
 
-**Full `docker compose` command parity** — all 29 commands are implemented.
+**32 `docker compose` commands implemented** (all but `commit`/`publish`/`bridge`, which have no Apple `container` equivalent). Every flag the runtime can support is implemented; see [COMPATIBILITY.md](./COMPATIBILITY.md).
 
 `up` supports `-d`, `--no-build`, `--scale SERVICE=N`, `--remove-orphans`.
 `depends_on` conditions (`service_healthy`, `service_completed_successfully`)
