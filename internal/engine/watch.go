@@ -43,6 +43,7 @@ func watchIgnored(changedPath string, ignore []string) bool {
 type WatchOptions struct {
 	NoUp  bool // don't build & start services before watching
 	Quiet bool // suppress build/sync progress logs
+	Prune bool // remove synced files from the container when deleted from source
 }
 
 // Watch implements `compose watch`: it (by default) brings the project up, then
@@ -99,6 +100,30 @@ func (e *Engine) Watch(ctx context.Context, p *types.Project, maxPolls int, opts
 				e.applyWatchChange(ctx, p, r.svc, r.trigger, cp, restart, rebuild, opts.Quiet)
 			}
 		}
+
+		// --prune: files deleted from the source are removed in the container.
+		if opts.Prune && !first {
+			for path := range prev {
+				if _, stillThere := cur[path]; stillThere {
+					continue
+				}
+				for _, r := range rules {
+					if !isSyncAction(r.trigger.Action) {
+						continue
+					}
+					if !strings.HasPrefix(path, r.trigger.Path) {
+						continue
+					}
+					target := syncTargetPath(r.trigger.Path, r.trigger.Target, path)
+					cname := containerName(p, r.svc, 1)
+					if !opts.Quiet {
+						e.logf("watch: pruning %s:%s", cname, target)
+					}
+					_, _ = e.Runner.Run(ctx, "exec", cname, "rm", "-rf", target)
+					break
+				}
+			}
+		}
 		for svc := range rebuild {
 			if !opts.Quiet {
 				e.logf("watch: rebuilding %s", svc)
@@ -149,6 +174,11 @@ func (e *Engine) scanChanges(trig types.Trigger, prev, cur map[string]time.Time)
 		return nil
 	})
 	return changed
+}
+
+// isSyncAction reports whether a watch action copies files into the container.
+func isSyncAction(a types.WatchAction) bool {
+	return a == types.WatchActionSync || a == types.WatchActionSyncRestart || a == types.WatchActionSyncExec
 }
 
 // applyWatchChange performs the action for a single changed file, queuing

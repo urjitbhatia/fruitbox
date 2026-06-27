@@ -106,3 +106,38 @@ func TestWatchNoUpSkipsUp(t *testing.T) {
 		t.Errorf("--no-up should not start services, calls: %v", fake.CommandArgs())
 	}
 }
+
+func TestWatchPruneRemovesDeleted(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(srcDir, "gone.go")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	proj := load(t, "basic")
+	web, _ := proj.GetService("web")
+	web.Develop = &types.DevelopConfig{Watch: []types.Trigger{{
+		Path: srcDir, Target: "/app", Action: types.WatchActionSync,
+	}}}
+	proj.Services["web"] = web
+
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	round := 0
+	e.Sleep = func(_ context.Context, _ time.Duration) error {
+		round++
+		_ = os.Remove(file) // delete the file after the seeding round
+		return nil
+	}
+	e.Now = func() time.Time { return time.Unix(0, 0) }
+
+	if err := e.Watch(context.Background(), proj, 2, WatchOptions{NoUp: true, Prune: true}); err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "exec basic-web-1 rm -rf /app/gone.go") == -1 {
+		t.Errorf("--prune should remove the deleted file in the container, calls: %v", fake.CommandArgs())
+	}
+}

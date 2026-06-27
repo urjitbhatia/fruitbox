@@ -27,7 +27,6 @@ var knownFlagGaps = map[string][]string{
 	"port":   {"index"},
 	"run":    {"use-aliases"},
 	"up":     {"menu"},
-	"watch":  {"prune"},
 }
 
 // flagRe matches long flags; uppercase is allowed because docker spells some

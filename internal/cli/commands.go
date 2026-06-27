@@ -138,6 +138,7 @@ func newWatchCommand(opts *globalOptions) *cobra.Command {
 	var (
 		noUp  bool
 		quiet bool
+		prune bool
 	)
 	cmd := &cobra.Command{
 		Use:   "watch",
@@ -151,11 +152,13 @@ func newWatchCommand(opts *globalOptions) *cobra.Command {
 			return opts.engine(cmd.OutOrStdout()).Watch(cmd.Context(), proj, 0, engine.WatchOptions{
 				NoUp:  noUp,
 				Quiet: quiet,
+				Prune: prune,
 			})
 		},
 	}
 	cmd.Flags().BoolVar(&noUp, "no-up", false, "Do not build & start services before watching")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Suppress progress output during watch")
+	cmd.Flags().BoolVar(&prune, "prune", false, "Prune dangling images on rebuild")
 	return cmd
 }
 
