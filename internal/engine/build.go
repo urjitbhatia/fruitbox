@@ -17,6 +17,7 @@ type BuildOptions struct {
 	Quiet            bool     // -q/--quiet
 	Memory           string   // -m/--memory
 	WithDependencies bool     // also build the named services' dependencies
+	Push             bool     // push each built image after building
 }
 
 // Build builds images for the named services that declare a build section
@@ -84,6 +85,15 @@ func (e *Engine) buildService(ctx context.Context, p *types.Project, svc types.S
 	}
 	if _, err := e.Runner.Run(ctx, args...); err != nil {
 		return fmt.Errorf("build %s: %w", svc.Name, err)
+	}
+	if opts.Push {
+		image := translate.BuildImageTag(p.Name, svc)
+		if !opts.Quiet {
+			e.logf("Pushing %s", image)
+		}
+		if _, err := e.Runner.Run(ctx, "image", "push", image); err != nil {
+			return fmt.Errorf("push %s: %w", image, err)
+		}
 	}
 	return nil
 }

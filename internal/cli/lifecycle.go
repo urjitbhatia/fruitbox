@@ -13,6 +13,7 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 		quiet     bool
 		memory    string
 		withDeps  bool
+		push      bool
 	)
 	cmd := &cobra.Command{
 		Use:   "build [SERVICE...]",
@@ -29,6 +30,7 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 				Quiet:            quiet,
 				Memory:           memory,
 				WithDependencies: withDeps,
+				Push:             push,
 			})
 		},
 	}
@@ -39,6 +41,7 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVarP(&quiet, "quiet", "q", false, "Don't print anything to STDOUT")
 	f.StringVarP(&memory, "memory", "m", "", "Set memory limit for the build container")
 	f.BoolVar(&withDeps, "with-dependencies", false, "Also build dependencies (transitively)")
+	f.BoolVar(&push, "push", false, "Push service images after building")
 	return cmd
 }
 

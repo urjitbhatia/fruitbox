@@ -79,3 +79,18 @@ func TestBuildWithoutDependenciesSkipsDeps(t *testing.T) {
 		t.Errorf("without --with-dependencies, lib should NOT build: %v", fake.CommandArgs())
 	}
 }
+
+func TestBuildPush(t *testing.T) {
+	proj := load(t, "build") // api builds (tag build_api)
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Build(context.Background(), proj, []string{"api"}, BuildOptions{Push: true}); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	calls := fake.CommandArgs()
+	posBuild := firstMatch(calls, "build --tag build_api")
+	posPush := firstMatch(calls, "image push build_api")
+	if posBuild == -1 || posPush == -1 || posBuild > posPush {
+		t.Errorf("--push should push after build, calls: %v", calls)
+	}
+}
