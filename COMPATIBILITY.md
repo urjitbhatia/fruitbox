@@ -83,7 +83,10 @@ them:
 
 Every other command is at full flag parity across all four versions. Regenerate
 this table with `make compat-matrix` (set `FRUITBOX_MATRIX_VERSIONS` to choose
-versions).
+versions). CI runs the same matrix in strict mode against these pinned versions
+(downloaded as release binaries, not the runner's preinstalled compose), so a
+future compose release that adds a flag fruitbox should support, or any drift
+from the recorded baseline, fails the build deterministically.
 
 ### Why each remaining gap stays open
 

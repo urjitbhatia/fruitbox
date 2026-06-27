@@ -8,8 +8,14 @@
 # daemon), so we can diff against any released binary.
 #
 # Usage:
-#   scripts/compat-matrix.sh                 # default version set
+#   scripts/compat-matrix.sh                 # default version set, report only
 #   FRUITBOX_MATRIX_VERSIONS="v5.2.0 v5.0.2 v2.40.3" scripts/compat-matrix.sh
+#   FRUITBOX_MATRIX_STRICT=1 scripts/compat-matrix.sh   # also gate (exit 1 on drift)
+#
+# In strict mode the exact TestFlagParity ratchet is run against every pinned
+# version, so the script exits non-zero if any version's flag gaps diverge from
+# the recorded knownFlagGaps baseline. This is what CI runs: deterministic
+# because the versions are pinned, not whatever compose the runner preinstalls.
 #
 # Requires: gh (to download release binaries), go, python3.
 set -euo pipefail
@@ -39,6 +45,9 @@ mkdir -p "$cache"
 report_dir=$(mktemp -d)
 trap 'rm -rf "$report_dir"' EXIT
 
+strict=${FRUITBOX_MATRIX_STRICT:-}
+strict_fail=0
+
 echo "Building flag-gap report against ${#VERSIONS[@]} compose versions ($asset)..." >&2
 
 for v in "${VERSIONS[@]}"; do
@@ -56,6 +65,17 @@ for v in "${VERSIONS[@]}"; do
   FRUITBOX_COMPAT=1 FRUITBOX_COMPOSE_BIN="$bin" \
     go test ./internal/cli/ -run '^TestFlagGapReport$' -v -count=1 2>&1 \
     | grep -oE 'GAP\|[a-z]+\|[a-z,-]*' > "$report_dir/$v.txt" || true
+
+  if [ -n "$strict" ]; then
+    # Authoritative gate: the exact ratchet must hold for this pinned version.
+    if FRUITBOX_COMPAT=1 FRUITBOX_COMPOSE_BIN="$bin" \
+        go test ./internal/cli/ -run '^TestFlagParity$' -count=1 >/dev/null 2>&1; then
+      echo "    $v: matches knownFlagGaps baseline" >&2
+    else
+      echo "    $v: DIVERGES from knownFlagGaps baseline (run TestFlagParity for details)" >&2
+      strict_fail=1
+    fi
+  fi
 done
 
 # Render the markdown table.
@@ -116,3 +136,8 @@ else:
     print(f"Gap set **differs** across versions — see the table. "
           f"({versions[0]} has {total} gaps.)")
 PY
+
+if [ "$strict_fail" -ne 0 ]; then
+  echo "strict matrix check failed: a pinned version diverges from knownFlagGaps" >&2
+  exit 1
+fi

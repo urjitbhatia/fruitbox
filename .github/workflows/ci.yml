@@ -32,3 +32,22 @@ jobs:
 
       - name: test
         run: go test -race ./...
+
+  compat:
+    name: compat · pinned docker compose matrix
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Pinned, deterministic version set — NOT the runner's preinstalled compose.
+      FRUITBOX_MATRIX_VERSIONS: "v5.2.0 v5.1.4 v5.0.2 v2.40.3"
+      FRUITBOX_MATRIX_STRICT: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          check-latest: true
+
+      - name: flag-parity matrix
+        run: ./scripts/compat-matrix.sh | tee -a "$GITHUB_STEP_SUMMARY"
