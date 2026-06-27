@@ -47,6 +47,7 @@ Download the latest `darwin_arm64` archive from the
 ```bash
 tar -xzf fruitbox_*_darwin_arm64.tar.gz
 sudo mv fruitbox /usr/local/bin/
+xattr -d com.apple.quarantine /usr/local/bin/fruitbox   # the binary isn't notarized yet
 ```
 
 Or with Go:
