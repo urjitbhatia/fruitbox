@@ -37,5 +37,8 @@ const (
 	FBLabelConfigHash      = "io.fruitbox.config-hash"
 )
 
-// Version is the fruitbox version reported in resource labels.
-const Version = "0.1.0"
+// Version is the fruitbox version reported in resource labels and by the
+// `version` command. It is a var (not a const) so release builds can stamp the
+// git tag into it via -ldflags "-X github.com/urjitbhatia/fruitbox/internal/translate.Version=...".
+// The default is the development version; released binaries override it.
+var Version = "0.1.0"

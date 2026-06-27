@@ -1,0 +1,65 @@
+# goreleaser config for fruitbox.
+#   local dry-run:  goreleaser release --snapshot --clean
+#   real release:   push a v* tag; the release workflow runs `goreleaser release`.
+#
+# fruitbox drives Apple's `container` runtime, which only runs on Apple silicon,
+# so darwin/arm64 is the only meaningful build target.
+version: 2
+
+project_name: fruitbox
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: fruitbox
+    main: ./cmd/fruitbox
+    binary: fruitbox
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/urjitbhatia/fruitbox/internal/translate.Version={{ .Version }}
+
+archives:
+  - id: fruitbox
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - COMPATIBILITY.md
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^Merge "
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ---
+
+    **Install**: download the `darwin_arm64` archive below, or
+    `go install github.com/urjitbhatia/fruitbox/cmd/fruitbox@{{ .Tag }}`.
+
+    Requires macOS 15+ on Apple silicon with Apple's
+    [`container`](https://github.com/apple/container) installed.

@@ -41,6 +41,16 @@ health, restarts, and teardown.
 
 ## Install
 
+Download the latest `darwin_arm64` archive from the
+[releases page](https://github.com/urjitbhatia/fruitbox/releases), then:
+
+```bash
+tar -xzf fruitbox_*_darwin_arm64.tar.gz
+sudo mv fruitbox /usr/local/bin/
+```
+
+Or with Go:
+
 ```bash
 go install github.com/urjitbhatia/fruitbox/cmd/fruitbox@latest
 ```
