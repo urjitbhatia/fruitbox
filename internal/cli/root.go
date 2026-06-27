@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/spf13/cobra"
@@ -131,10 +133,16 @@ func isCharDevice(f *os.File) bool {
 
 // Execute runs the root command, returning a process exit code.
 func Execute() int {
+	// Cancel the command context on the first SIGINT/SIGTERM so a foreground
+	// `up` can stop its containers gracefully. NotifyContext restores the
+	// default handler after the first signal, so a second Ctrl-C force-quits.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	root := NewRootCommand()
 	root.SetOut(os.Stdout)
 	root.SetErr(os.Stderr)
-	if err := root.Execute(); err != nil {
+	if err := root.ExecuteContext(ctx); err != nil {
 		// --exit-code-from / --abort-on-* propagate a container's exit code.
 		var exit engine.ExitError
 		if errors.As(err, &exit) {

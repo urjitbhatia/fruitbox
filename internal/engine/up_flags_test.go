@@ -165,3 +165,22 @@ func TestUpForegroundNoAttachExcludes(t *testing.T) {
 		t.Errorf("--no-attach db should suppress db logs:\n%s", s)
 	}
 }
+
+func TestUpForegroundGracefulStopOnCancel(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	// Simulate Ctrl-C: the context is already cancelled when supervising.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	e := New(fake, io.Discard)
+
+	// Foreground up: should start, see the cancellation, and gracefully stop
+	// the started containers, exiting cleanly (nil).
+	if err := e.Up(ctx, proj, UpOptions{}); err != nil {
+		t.Fatalf("Up should exit cleanly on Ctrl-C, got %v", err)
+	}
+	calls := fake.CommandArgs()
+	if firstMatch(calls, "stop basic-web-1") == -1 || firstMatch(calls, "stop basic-db-1") == -1 {
+		t.Errorf("Ctrl-C should gracefully stop started containers, calls:\n%v", calls)
+	}
+}

@@ -277,10 +277,26 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 		})
 		cancelLogs()
 		<-logsDone
+
+		// Ctrl-C / SIGTERM: the context was cancelled while supervising. Stop
+		// the started containers gracefully (a second signal hits the default
+		// handler and force-quits) and exit cleanly. Use a context detached
+		// from the cancelled one so the stop commands actually run.
+		if ctx.Err() != nil {
+			e.logf("Gracefully stopping... (press Ctrl-C again to force)")
+			stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gracefulStopTimeout)
+			defer cancel()
+			_ = e.Stop(stopCtx, p, started, nil)
+			return nil
+		}
 		return err
 	}
 	return nil
 }
+
+// gracefulStopTimeout bounds how long a foreground up waits to stop containers
+// after Ctrl-C before giving up (a second Ctrl-C force-quits sooner).
+const gracefulStopTimeout = 30 * time.Second
 
 func (e *Engine) ensureNetworks(ctx context.Context, p *types.Project) error {
 	for _, key := range sortedKeys(p.Networks) {
