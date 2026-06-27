@@ -26,7 +26,7 @@ var knownFlagGaps = map[string][]string{
 	"logs":   {"since", "until"},
 	"port":   {"index"},
 	"run":    {"use-aliases"},
-	"up":     {"always-recreate-deps", "menu", "renew-anon-volumes"},
+	"up":     {"menu"},
 	"watch":  {"prune"},
 }
 

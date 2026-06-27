@@ -103,6 +103,8 @@ type UpOptions struct {
 	AbortOnFailure bool
 	// ExitCodeFrom returns this service's exit code from a foreground up.
 	ExitCodeFrom string
+	// AlwaysRecreateDeps force-recreates dependency containers too.
+	AlwaysRecreateDeps bool
 	// Attach restricts foreground log streaming to these services (empty = all
 	// started). NoAttach excludes services. AttachDependencies also streams the
 	// logs of dependency services.
@@ -220,6 +222,20 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 		return err
 	}
 	selected := e.selectedServices(p, opts)
+	// Services that are depended upon (for --always-recreate-deps).
+	depServices := map[string]bool{}
+	if opts.AlwaysRecreateDeps {
+		for _, name := range order {
+			if selected != nil && !selected[name] {
+				continue
+			}
+			if svc, err := p.GetService(name); err == nil {
+				for d := range transitiveDeps(p, svc) {
+					depServices[d] = true
+				}
+			}
+		}
+	}
 	var started []string
 	for _, name := range order {
 		if selected != nil && !selected[name] {
@@ -228,6 +244,11 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 		svc, err := p.GetService(name)
 		if err != nil {
 			return err
+		}
+		// --always-recreate-deps: force dependency containers to recreate.
+		svcOpts := opts
+		if depServices[name] {
+			svcOpts.ForceRecreate = true
 		}
 		// Wait for declared dependencies to satisfy their conditions before
 		// starting this service. Skipped under --no-deps, which assumes deps
@@ -238,7 +259,7 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 				return err
 			}
 		}
-		if err := e.startService(ctx, p, svc, opts); err != nil {
+		if err := e.startService(ctx, p, svc, svcOpts); err != nil {
 			return err
 		}
 		started = append(started, name)

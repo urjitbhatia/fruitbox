@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/urjitbhatia/fruitbox/internal/runner"
+	"github.com/urjitbhatia/fruitbox/internal/translate"
 )
 
 func TestUpNoStartCreatesWithoutStarting(t *testing.T) {
@@ -182,5 +183,29 @@ func TestUpForegroundGracefulStopOnCancel(t *testing.T) {
 	calls := fake.CommandArgs()
 	if firstMatch(calls, "stop basic-web-1") == -1 || firstMatch(calls, "stop basic-db-1") == -1 {
 		t.Errorf("Ctrl-C should gracefully stop started containers, calls:\n%v", calls)
+	}
+}
+
+func TestUpAlwaysRecreateDeps(t *testing.T) {
+	proj := load(t, "basic") // web depends_on db
+	web, _ := proj.GetService("web")
+	db, _ := proj.GetService("db")
+	fake := &runner.Fake{}
+	// Both already exist with their CURRENT config hash (so default = reuse).
+	fake.On("inspect basic-web-1", runner.Result{Stdout: inspectWithHash(translate.ServiceConfigHash(web))}, nil)
+	fake.On("inspect basic-db-1", runner.Result{Stdout: inspectWithHash(translate.ServiceConfigHash(db))}, nil)
+	e := New(fake, io.Discard)
+
+	if err := e.Up(context.Background(), proj, UpOptions{Detach: true, AlwaysRecreateDeps: true}); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	calls := fake.CommandArgs()
+	// db is a dependency -> force-recreated despite being up-to-date.
+	if firstMatch(calls, "delete basic-db-1") == -1 {
+		t.Errorf("--always-recreate-deps should recreate the dependency db, calls: %v", calls)
+	}
+	// web is not a dependency of anything -> left as-is (up-to-date).
+	if firstMatch(calls, "delete basic-web-1") != -1 {
+		t.Errorf("non-dependency web should not be recreated, calls: %v", calls)
 	}
 }

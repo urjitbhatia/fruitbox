@@ -11,32 +11,34 @@ import (
 
 func newUpCommand(opts *globalOptions) *cobra.Command {
 	var (
-		detach         bool
-		noBuild        bool
-		removeOrphans  bool
-		noStart        bool
-		wait           bool
-		waitTimeout    int
-		pull           string
-		forceRecreate  bool
-		noRecreate     bool
-		noDeps         bool
-		timeout        int
-		abortOnExit    bool
-		abortOnFailure bool
-		exitCodeFrom   string
-		attach         []string
-		noAttach       []string
-		attachDeps     bool
-		noLogPrefix    bool
-		noColor        bool
-		timestamps     bool
-		quietBuild     bool
-		quietPull      bool
-		build          bool
-		watch          bool
-		yes            bool
-		scaleFlags     []string
+		detach          bool
+		noBuild         bool
+		removeOrphans   bool
+		noStart         bool
+		wait            bool
+		waitTimeout     int
+		pull            string
+		forceRecreate   bool
+		noRecreate      bool
+		noDeps          bool
+		timeout         int
+		abortOnExit     bool
+		abortOnFailure  bool
+		exitCodeFrom    string
+		attach          []string
+		noAttach        []string
+		attachDeps      bool
+		noLogPrefix     bool
+		noColor         bool
+		timestamps      bool
+		quietBuild      bool
+		quietPull       bool
+		build           bool
+		watch           bool
+		yes             bool
+		recreateDeps    bool
+		renewAnonVolume bool
+		scaleFlags      []string
 	)
 	cmd := &cobra.Command{
 		Use:   "up [SERVICE...]",
@@ -46,7 +48,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = yes // fruitbox never prompts; --yes is satisfied by default
+			_ = yes             // fruitbox never prompts; --yes is satisfied by default
+			_ = renewAnonVolume // fruitbox recreate always allocates fresh anon volumes
 			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
@@ -69,6 +72,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				AbortOnExit:        abortOnExit,
 				AbortOnFailure:     abortOnFailure,
 				ExitCodeFrom:       exitCodeFrom,
+				AlwaysRecreateDeps: recreateDeps,
 				Attach:             attach,
 				NoAttach:           noAttach,
 				AttachDependencies: attachDeps,
@@ -118,6 +122,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&build, "build", false, "Build images before starting containers")
 	f.BoolVar(&watch, "watch", false, "Watch source code and rebuild/refresh containers on change")
 	f.BoolVarP(&yes, "yes", "y", false, "Assume \"yes\" as answer to all prompts")
+	f.BoolVar(&recreateDeps, "always-recreate-deps", false, "Recreate dependent containers")
+	f.BoolVar(&renewAnonVolume, "renew-anon-volumes", false, "Recreate anonymous volumes instead of retrieving data from the previous containers")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }
