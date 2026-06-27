@@ -35,6 +35,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		quietPull      bool
 		build          bool
 		watch          bool
+		yes            bool
 		scaleFlags     []string
 	)
 	cmd := &cobra.Command{
@@ -45,6 +46,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			_ = yes // fruitbox never prompts; --yes is satisfied by default
 			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
@@ -115,6 +117,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&quietPull, "quiet-pull", false, "Pull without printing progress information")
 	f.BoolVar(&build, "build", false, "Build images before starting containers")
 	f.BoolVar(&watch, "watch", false, "Watch source code and rebuild/refresh containers on change")
+	f.BoolVarP(&yes, "yes", "y", false, "Assume \"yes\" as answer to all prompts")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }

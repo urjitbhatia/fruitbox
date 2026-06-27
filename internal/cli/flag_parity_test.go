@@ -18,16 +18,15 @@ import (
 // against docker compose v5.0.2; regenerate with scripts/compat-audit.sh.
 var knownFlagGaps = map[string][]string{
 	"attach": {"detach-keys", "no-stdin", "sig-proxy"},
-	"build":  {"builder", "check", "print", "provenance", "push", "sbom", "ssh", "with-dependencies"},
+	"build":  {"builder", "check", "print", "provenance", "push", "sbom", "ssh"},
 	"config": {"lock-image-digests", "resolve-image-digests", "variables"},
 	"cp":     {"archive", "follow-link"},
-	"create": {"build", "yes"},
 	"events": {"since", "until"},
 	"exec":   {"privileged"},
 	"logs":   {"since", "until"},
 	"port":   {"index"},
 	"run":    {"use-aliases"},
-	"up":     {"always-recreate-deps", "menu", "renew-anon-volumes", "yes"},
+	"up":     {"always-recreate-deps", "menu", "renew-anon-volumes"},
 	"watch":  {"prune"},
 }
 

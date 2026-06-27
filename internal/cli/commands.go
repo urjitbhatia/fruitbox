@@ -14,6 +14,8 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 		forceRecreate bool
 		noRecreate    bool
 		quietPull     bool
+		build         bool
+		yes           bool
 	)
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -29,9 +31,10 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			defer release()
+			_ = yes // fruitbox never prompts; --yes is satisfied by default
 			return e.Create(cmd.Context(), proj, engine.CreateOptions{
 				Scale:         scale,
-				NoBuild:       noBuild,
+				NoBuild:       noBuild && !build,
 				Pull:          pull,
 				RemoveOrphans: removeOrphans,
 				ForceRecreate: forceRecreate,
@@ -48,6 +51,8 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&forceRecreate, "force-recreate", false, "Recreate containers even if their configuration hasn't changed")
 	f.BoolVar(&noRecreate, "no-recreate", false, "If containers already exist, don't recreate them")
 	f.BoolVar(&quietPull, "quiet-pull", false, "Pull without printing progress information")
+	f.BoolVar(&build, "build", false, "Build images before creating containers")
+	f.BoolVarP(&yes, "yes", "y", false, "Assume \"yes\" as answer to all prompts")
 	return cmd
 }
 

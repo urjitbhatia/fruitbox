@@ -51,3 +51,31 @@ func TestBuildQuietMemory(t *testing.T) {
 		t.Errorf("build should carry --quiet --memory: %s", buildCall)
 	}
 }
+
+func TestBuildWithDependencies(t *testing.T) {
+	proj := load(t, "builddeps") // app (build) depends_on lib (build)
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Build(context.Background(), proj, []string{"app"}, BuildOptions{WithDependencies: true}); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	calls := fake.CommandArgs()
+	if firstMatch(calls, "build --tag builddeps_app") == -1 {
+		t.Errorf("should build app, calls: %v", calls)
+	}
+	if firstMatch(calls, "build --tag builddeps_lib") == -1 {
+		t.Errorf("--with-dependencies should also build lib, calls: %v", calls)
+	}
+}
+
+func TestBuildWithoutDependenciesSkipsDeps(t *testing.T) {
+	proj := load(t, "builddeps")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Build(context.Background(), proj, []string{"app"}, BuildOptions{}); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "build --tag builddeps_lib") != -1 {
+		t.Errorf("without --with-dependencies, lib should NOT build: %v", fake.CommandArgs())
+	}
+}

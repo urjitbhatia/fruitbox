@@ -1,0 +1,6 @@
+services:
+  app:
+    build: ./app
+    depends_on: [lib]
+  lib:
+    build: ./lib

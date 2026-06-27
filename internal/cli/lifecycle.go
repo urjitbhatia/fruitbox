@@ -12,6 +12,7 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 		pull      bool
 		quiet     bool
 		memory    string
+		withDeps  bool
 	)
 	cmd := &cobra.Command{
 		Use:   "build [SERVICE...]",
@@ -22,11 +23,12 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 				return err
 			}
 			return opts.engine(cmd.OutOrStdout()).Build(cmd.Context(), proj, services, engine.BuildOptions{
-				BuildArgs: buildArgs,
-				NoCache:   noCache,
-				Pull:      pull,
-				Quiet:     quiet,
-				Memory:    memory,
+				BuildArgs:        buildArgs,
+				NoCache:          noCache,
+				Pull:             pull,
+				Quiet:            quiet,
+				Memory:           memory,
+				WithDependencies: withDeps,
 			})
 		},
 	}
@@ -36,6 +38,7 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&pull, "pull", false, "Always attempt to pull a newer version of the image")
 	f.BoolVarP(&quiet, "quiet", "q", false, "Don't print anything to STDOUT")
 	f.StringVarP(&memory, "memory", "m", "", "Set memory limit for the build container")
+	f.BoolVar(&withDeps, "with-dependencies", false, "Also build dependencies (transitively)")
 	return cmd
 }
 

@@ -11,11 +11,12 @@ import (
 
 // BuildOptions overrides build settings from the CLI (`docker compose build`).
 type BuildOptions struct {
-	BuildArgs []string // extra KEY=VALUE build args (override compose)
-	NoCache   bool     // force --no-cache
-	Pull      bool     // force --pull
-	Quiet     bool     // -q/--quiet
-	Memory    string   // -m/--memory
+	BuildArgs        []string // extra KEY=VALUE build args (override compose)
+	NoCache          bool     // force --no-cache
+	Pull             bool     // force --pull
+	Quiet            bool     // -q/--quiet
+	Memory           string   // -m/--memory
+	WithDependencies bool     // also build the named services' dependencies
 }
 
 // Build builds images for the named services that declare a build section
@@ -23,6 +24,9 @@ type BuildOptions struct {
 func (e *Engine) Build(ctx context.Context, p *types.Project, names []string, opts BuildOptions) error {
 	if len(names) == 0 {
 		names = p.ServiceNames()
+	}
+	if opts.WithDependencies {
+		names = e.maybeIncludeDeps(p, names, true)
 	}
 	for _, name := range names {
 		svc, err := p.GetService(name)
