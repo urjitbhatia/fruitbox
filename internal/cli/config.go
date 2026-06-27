@@ -22,6 +22,7 @@ type configFlags struct {
 	models        bool
 	profiles      bool
 	images        bool
+	environment   bool
 	hash          string
 	noInterpolate bool
 	noNormalize   bool
@@ -61,6 +62,7 @@ func newConfigCommand(opts *globalOptions) *cobra.Command {
 	fl.BoolVar(&f.models, "models", false, "Print the model names, one per line")
 	fl.BoolVar(&f.profiles, "profiles", false, "Print the profile names, one per line")
 	fl.BoolVar(&f.images, "images", false, "Print the image names, one per line")
+	fl.BoolVar(&f.environment, "environment", false, "Print environment used for interpolation")
 	fl.StringVar(&f.hash, "hash", "", "Print the service config hash, one per line (\"*\" for all)")
 	fl.BoolVar(&f.noInterpolate, "no-interpolate", false, "Don't interpolate environment variables")
 	fl.BoolVar(&f.noNormalize, "no-normalize", false, "Don't normalize the compose model")
@@ -85,6 +87,8 @@ func runConfig(cmd *cobra.Command, proj *types.Project, f *configFlags) error {
 		return printLines(cmd, profileNames(proj))
 	case f.images:
 		return printLines(cmd, imageNames(proj))
+	case f.environment:
+		return printEnvironment(cmd, proj)
 	case f.hash != "":
 		return printHashes(cmd, proj, f.hash)
 	}
@@ -186,6 +190,25 @@ func profileNames(proj *types.Project) []string {
 		}
 	}
 	return keysOf(seen)
+}
+
+// printEnvironment prints the KEY=VALUE environment used for interpolation,
+// sorted, like docker compose config --environment. Falls back to the process
+// environment if the project model didn't capture it.
+func printEnvironment(cmd *cobra.Command, proj *types.Project) error {
+	var lines []string
+	if len(proj.Environment) > 0 {
+		for k, v := range proj.Environment {
+			lines = append(lines, k+"="+v)
+		}
+	} else {
+		lines = append(lines, os.Environ()...)
+	}
+	sort.Strings(lines)
+	for _, l := range lines {
+		fmt.Fprintln(cmd.OutOrStdout(), l)
+	}
+	return nil
 }
 
 func imageNames(proj *types.Project) []string {

@@ -65,3 +65,15 @@ func TestConfigNetworksImagesProfilesHash(t *testing.T) {
 		}
 	})
 }
+
+func TestConfigEnvironment(t *testing.T) {
+	t.Setenv("FBX_CONFIG_ENV_TEST", "abc123")
+	file := filepath.Join("testdata", "basic", "compose.yaml")
+	out, err := runRoot(t, "-f", file, "-p", "basic", "config", "--environment")
+	if err != nil {
+		t.Fatalf("config --environment: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "FBX_CONFIG_ENV_TEST=abc123") {
+		t.Errorf("config --environment should include interpolation env var:\n%s", out[:min(len(out), 300)])
+	}
+}

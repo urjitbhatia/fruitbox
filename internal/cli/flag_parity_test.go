@@ -19,7 +19,7 @@ import (
 var knownFlagGaps = map[string][]string{
 	"attach": {"detach-keys", "no-stdin", "sig-proxy"},
 	"build":  {"builder", "check", "print", "provenance", "push", "sbom", "ssh", "with-dependencies"},
-	"config": {"environment", "lock-image-digests", "resolve-image-digests", "variables"},
+	"config": {"lock-image-digests", "resolve-image-digests", "variables"},
 	"cp":     {"archive", "follow-link"},
 	"create": {"build", "yes"},
 	"events": {"since", "until"},
