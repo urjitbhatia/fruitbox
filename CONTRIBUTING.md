@@ -51,8 +51,7 @@ With a local `docker compose` installed:
 make compat        # diff fruitbox's flag surface against real docker compose
 ```
 
-This is the source of truth behind `COMPATIBILITY.md` and the `TestFlagParity`
-ratchet.
+This is what `COMPATIBILITY.md` and the `TestFlagParity` baseline are built from.
 
 ## Opening a PR
 

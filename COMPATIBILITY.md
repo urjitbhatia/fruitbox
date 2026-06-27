@@ -1,37 +1,31 @@
-# Docker Compose compatibility status
+# Docker Compose compatibility
 
-This file tracks fruitbox's CLI compatibility with `docker compose`, **measured**
-by diffing against a real `docker compose` install — not asserted. Regenerate it
-any time with:
+This file records how fruitbox's CLI lines up with `docker compose`. The numbers
+come from diffing against a real `docker compose` install rather than from claims.
+Regenerate it with:
 
 ```bash
 go install ./cmd/fruitbox
 ./scripts/compat-audit.sh "$(go env GOPATH)/bin/fruitbox"
 ```
 
-Baseline reference: `docker compose` v5.0.2 (also cross-checked against
-<https://docs.docker.com/reference/cli/docker/compose/>).
+Baseline reference: `docker compose` v5.0.2, cross-checked against
+<https://docs.docker.com/reference/cli/docker/compose/>.
 
-## Automated compatibility tests
+## Automated tests
 
-Two tests in `internal/cli` enforce this against a real `docker compose`
-(they `t.Skip` when it isn't installed, so CI stays hermetic):
+Two tests in `internal/cli` check this against a real `docker compose`. They
+`t.Skip` when it isn't installed, so CI stays hermetic:
 
-- **`TestConfigMatchesDockerCompose`** — differential output test. Runs fruitbox
-  in-process and `docker compose` as a subprocess over a fixture matrix
-  (`--services/--networks/--volumes/--profiles/--images`, profile activation,
-  multi-file merge, and full YAML render) and asserts **identical output**. The
-  full `config` YAML is byte-for-byte identical because both use compose-go's
-  marshaller.
-- **`TestFlagParity`** — a *ratchet*. It computes, per command, the docker
-  compose flags fruitbox is missing and asserts the set exactly equals the
-  `knownFlagGaps` baseline. Closing a gap, regressing one (silently losing a
-  flag — like the `-f` crash did), or a docker change all force a visible update.
-
-> **Honesty note:** an earlier revision claimed "full command parity." That was
-> wrong — it compared command *names* only. The flag surface was far from
-> complete. This document exists so the claim stays grounded in a reproducible
-> measurement.
+- `TestConfigMatchesDockerCompose` runs fruitbox in-process and `docker compose`
+  as a subprocess over a fixture matrix (`--services/--networks/--volumes/--profiles/--images`,
+  profile activation, multi-file merge, and full YAML render) and asserts the
+  output is identical. The rendered `config` YAML matches byte for byte because
+  both use the compose-go marshaller.
+- `TestFlagParity` computes the `docker compose` flags fruitbox is missing per
+  command and asserts the set equals the `knownFlagGaps` baseline. Closing a gap,
+  losing a flag (as the early `-f` crash did), or a change on the docker side all
+  force a visible update to the baseline.
 
 ## Commands
 
@@ -49,21 +43,20 @@ scale, start, stats, stop, top, unpause, up, version, volumes, wait, watch.
 
 ## Flag coverage
 
-Per-command flag gaps are enforced by `TestFlagParity` (the `knownFlagGaps`
+Per-command flag gaps are tracked by `TestFlagParity` (the `knownFlagGaps`
 baseline) and can be regenerated with `scripts/compat-audit.sh`.
 
-**Progress: 138 → 36 recorded gaps. Every implementable flag is implemented**
-— 22 of the 32 commands are at full flag parity, and the remaining 36 gaps are
-all genuine runtime limitations or out-of-scope features (enumerated below),
-not unfinished work.
+Coverage has gone from 138 recorded gaps to 36. 22 of the 32 commands are at full
+flag parity, and the remaining 36 gaps are runtime limitations or out-of-scope
+features (listed below), not unfinished work.
 
-> Validated against the real Apple `container` v1.0.0 runtime (see the
-> integration lane, `make test-integration`). One discovered limitation:
-> `container inspect` reports only `state` ("stopped"), never a process exit
-> code, so `up --abort-on-container-failure` / `--exit-code-from` fall back to
-> 0 with a warning. `--abort-on-container-exit` works fully.
+These were checked against the Apple `container` v1.0.0 runtime through the
+integration lane (`make test-integration`). One limitation came out of that:
+`container inspect` reports only `state` ("stopped"), never a process exit code,
+so `up --abort-on-container-failure` and `--exit-code-from` fall back to 0 with a
+warning. `--abort-on-container-exit` works fully.
 
-### Why each remaining gap can't be closed
+### Why each remaining gap stays open
 
 | Command | Gap | Reason |
 |---|---|---|
