@@ -20,17 +20,11 @@ fruitbox takes the [Compose](https://compose-spec.io) file you already have and 
 runtime built into macOS for Apple silicon. Same `compose.yaml`, same commands you know from
 `docker compose`, but each service runs in its own fast native VM instead of a Docker daemon.
 
-```console
-$ fruitbox up -d
-Creating network "myapp_default"
-Starting myapp-db-1
-Starting myapp-web-1
+<div align="center">
 
-$ fruitbox ps
-NAME          IMAGE          SERVICE  STATUS   PORTS
-myapp-db-1    postgres:16    db       running
-myapp-web-1   nginx:1.27     web      running  0.0.0.0:8080->80/tcp
-```
+<img src="assets/demo.gif" alt="fruitbox up → ps → logs → down" width="760" />
+
+</div>
 
 ## Quick start
 
