@@ -18,6 +18,13 @@ import (
 // engine method — because the orchestrator calls other engine methods
 // internally and a second flock from the same process (different fd) would
 // deadlock.
+//
+// Crash recovery is automatic: flock is released by the kernel when the holding
+// process dies (its fd is closed), so a crashed command never leaves a held
+// lock. The lock FILE is deliberately NOT unlinked on release — unlinking it
+// would reintroduce a race where a waiter holds the lock on the now-removed
+// inode while a new process creates a fresh file and locks it independently
+// (two holders). A lingering zero-byte lock file is harmless.
 func (e *Engine) LockProject(project string) (func(), error) {
 	dir := filepath.Join(e.stateDir(), "locks")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
