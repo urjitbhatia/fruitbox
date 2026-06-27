@@ -61,9 +61,9 @@ func newPsCommand(opts *globalOptions) *cobra.Command {
 				return enc.Encode(statuses)
 			default:
 				w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 2, 2, ' ', 0)
-				fmt.Fprintln(w, "NAME\tSERVICE\tSTATUS")
+				fmt.Fprintln(w, "NAME\tIMAGE\tSERVICE\tSTATUS\tPORTS")
 				for _, s := range statuses {
-					fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, s.Service, s.Status)
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, s.Image, s.Service, s.Status, s.Ports)
 				}
 				return w.Flush()
 			}

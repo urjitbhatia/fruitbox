@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -14,6 +15,8 @@ type listedContainer struct {
 	Name    string
 	Labels  map[string]string
 	status  string
+	image   string
+	ports   string
 	project string
 	service string
 }
@@ -89,16 +92,94 @@ func parseContainerList(payload string) []listedContainer {
 		if !ok {
 			continue
 		}
+		cfg, _ := m["configuration"].(map[string]any)
 		c := listedContainer{
-			Name:   findString(m, "name", "Name", "id", "ID"),
+			Name:   containerName2(m, cfg),
 			Labels: extractLabels(m),
 			status: findString(m, "status", "Status", "state", "State"),
+			image:  extractImage(cfg),
+			ports:  extractPorts(cfg),
 		}
 		c.project = c.Labels[translate.LabelProject]
 		c.service = c.Labels[translate.LabelService]
 		out = append(out, c)
 	}
 	return out
+}
+
+// containerName2 resolves the container name from the top level or the nested
+// configuration object.
+func containerName2(m, cfg map[string]any) string {
+	if s := findString(m, "name", "Name", "id", "ID"); s != "" {
+		return s
+	}
+	if cfg != nil {
+		return findString(cfg, "id", "name")
+	}
+	return ""
+}
+
+// extractImage pulls configuration.image.reference (the image tag) from a
+// listed container's configuration.
+func extractImage(cfg map[string]any) string {
+	if cfg == nil {
+		return ""
+	}
+	if img, ok := cfg["image"].(map[string]any); ok {
+		if s, ok := img["reference"].(string); ok {
+			return s
+		}
+	}
+	if s, ok := cfg["image"].(string); ok {
+		return s
+	}
+	return ""
+}
+
+// extractPorts renders configuration.publishedPorts as a docker-style
+// "host:hostPort->containerPort/proto" comma list.
+func extractPorts(cfg map[string]any) string {
+	if cfg == nil {
+		return ""
+	}
+	list, ok := cfg["publishedPorts"].([]any)
+	if !ok {
+		return ""
+	}
+	var parts []string
+	for _, p := range list {
+		pm, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+		host := numOrEmpty(pm["hostPort"])
+		cport := numOrEmpty(pm["containerPort"])
+		proto, _ := pm["proto"].(string)
+		addr, _ := pm["hostAddress"].(string)
+		if proto == "" {
+			proto = "tcp"
+		}
+		if addr == "" {
+			addr = "0.0.0.0"
+		}
+		if host == "" || cport == "" {
+			continue
+		}
+		parts = append(parts, addr+":"+host+"->"+cport+"/"+proto)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func numOrEmpty(v any) string {
+	switch n := v.(type) {
+	case float64:
+		return strconv.Itoa(int(n))
+	case int:
+		return strconv.Itoa(n)
+	case string:
+		return n
+	}
+	return ""
 }
 
 // extractLabels finds a labels map under common locations, including a nested

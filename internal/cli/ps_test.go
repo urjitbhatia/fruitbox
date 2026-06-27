@@ -9,14 +9,22 @@ import (
 	"github.com/urjitbhatia/fruitbox/internal/engine"
 )
 
-// writeStubContainer writes a fake `container` binary that prints running
-// inspect JSON, so ps can resolve statuses without the real runtime.
+// writeStubContainer writes a fake `container` binary that prints `container ls`
+// JSON for the basic project, so ps can resolve live state without the runtime.
 func writeStubContainer(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "container")
+	listJSON := `[` +
+		`{"configuration":{"id":"basic-web-1","image":{"reference":"nginx:1.27"},` +
+		`"labels":{"com.docker.compose.project":"basic","com.docker.compose.service":"web"},` +
+		`"publishedPorts":[{"hostAddress":"0.0.0.0","hostPort":8080,"containerPort":80,"proto":"tcp"}]},` +
+		`"status":{"state":"running"}},` +
+		`{"configuration":{"id":"basic-db-1","image":{"reference":"postgres:16"},` +
+		`"labels":{"com.docker.compose.project":"basic","com.docker.compose.service":"db"}},` +
+		`"status":{"state":"running"}}]`
 	script := "#!/bin/sh\n" +
-		"if [ \"$1\" = inspect ]; then echo '[{\"status\":\"running\"}]'; fi\n" +
+		"if [ \"$1\" = list ]; then echo '" + listJSON + "'; fi\n" +
 		"exit 0\n"
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -90,5 +98,26 @@ func TestParsePsFilters(t *testing.T) {
 	}
 	if _, err := parsePsFilters(false, "", []string{"weird=x"}); err == nil {
 		t.Error("expected error for unsupported filter key")
+	}
+}
+
+func TestPsEnrichesImageAndPorts(t *testing.T) {
+	stub := writeStubContainer(t)
+	file := filepath.Join("testdata", "basic", "compose.yaml")
+	out, err := runRoot(t, "-f", file, "-p", "basic", "--container-binary", stub, "ps")
+	if err != nil {
+		t.Fatalf("ps: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "IMAGE") || !strings.Contains(out, "PORTS") {
+		t.Errorf("ps table should have IMAGE and PORTS columns:\n%s", out)
+	}
+	if !strings.Contains(out, "nginx:1.27") {
+		t.Errorf("ps should show the live image:\n%s", out)
+	}
+	if !strings.Contains(out, "0.0.0.0:8080->80/tcp") {
+		t.Errorf("ps should show the published port:\n%s", out)
+	}
+	if !strings.Contains(out, "running") {
+		t.Errorf("ps should show running status:\n%s", out)
 	}
 }

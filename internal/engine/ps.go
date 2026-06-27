@@ -2,8 +2,6 @@ package engine
 
 import (
 	"context"
-	"encoding/json"
-	"strings"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/urjitbhatia/fruitbox/internal/translate"
@@ -14,15 +12,28 @@ type ContainerStatus struct {
 	Name    string
 	Service string
 	Status  string
+	Image   string
+	Ports   string
 }
 
 // Ps returns the status of every container the project expects, in dependency
-// order. Containers that have not been created report status "not created".
+// order, enriched with the live image/ports/status from the runtime. Containers
+// that have not been created report status "not created" and their configured
+// image.
 func (e *Engine) Ps(ctx context.Context, p *types.Project) ([]ContainerStatus, error) {
 	order, err := DependencyOrder(p)
 	if err != nil {
 		return nil, err
 	}
+
+	// One `container ls` call enriches every row (image/ports/state).
+	live := map[string]listedContainer{}
+	if res, err := e.Runner.Run(ctx, "list", "--all", "--format", "json"); err == nil {
+		for _, c := range parseContainerList(res.Stdout) {
+			live[c.Name] = c
+		}
+	}
+
 	var out []ContainerStatus
 	for _, name := range order {
 		svc, err := p.GetService(name)
@@ -34,69 +45,69 @@ func (e *Engine) Ps(ctx context.Context, p *types.Project) ([]ContainerStatus, e
 			if cname == "" {
 				cname = translate.ContainerName(p.Name, svc.Name, n)
 			}
-			out = append(out, ContainerStatus{
+			row := ContainerStatus{
 				Name:    cname,
 				Service: svc.Name,
-				Status:  e.probeStatus(ctx, cname),
-			})
+				Status:  "not created",
+				Image:   serviceImage(p, svc),
+				Ports:   configuredPorts(svc),
+			}
+			if c, ok := live[cname]; ok {
+				if c.status != "" {
+					row.Status = c.status
+				} else {
+					row.Status = "created"
+				}
+				if c.image != "" {
+					row.Image = c.image
+				}
+				if c.ports != "" {
+					row.Ports = c.ports
+				}
+			}
+			out = append(out, row)
 		}
 	}
 	return out, nil
 }
 
-// probeStatus inspects a single container and returns a coarse status string.
-// It is tolerant of the exact inspect JSON shape emitted by the container CLI.
-func (e *Engine) probeStatus(ctx context.Context, name string) string {
-	res, err := e.Runner.Run(ctx, "inspect", name)
-	if err != nil {
-		return "not created"
+// serviceImage returns a service's effective image (built tag when build-only).
+func serviceImage(p *types.Project, svc types.ServiceConfig) string {
+	if svc.Image != "" {
+		return svc.Image
 	}
-	if s := extractStatus(res.Stdout); s != "" {
-		return s
-	}
-	return "created"
-}
-
-// extractStatus pulls a status/state field out of a container inspect payload,
-// scanning common key names without committing to a fixed schema.
-func extractStatus(payload string) string {
-	payload = strings.TrimSpace(payload)
-	if payload == "" {
-		return ""
-	}
-	var generic any
-	if err := json.Unmarshal([]byte(payload), &generic); err != nil {
-		return ""
-	}
-	// inspect commonly returns an array of objects.
-	switch v := generic.(type) {
-	case []any:
-		if len(v) > 0 {
-			return statusFromNode(v[0])
-		}
-	default:
-		return statusFromNode(generic)
+	if svc.Build != nil {
+		return translate.BuildImageTag(p.Name, svc)
 	}
 	return ""
 }
 
-func statusFromNode(node any) string {
-	m, ok := node.(map[string]any)
-	if !ok {
-		return ""
-	}
-	for _, key := range []string{"status", "state", "Status", "State"} {
-		if val, ok := m[key]; ok {
-			if s, ok := val.(string); ok && s != "" {
-				return s
-			}
-			// Nested {"status": {"state": "running"}} style.
-			if nested, ok := val.(map[string]any); ok {
-				if s := statusFromNode(nested); s != "" {
-					return s
-				}
-			}
+// configuredPorts renders a service's declared ports as "host->container/proto".
+func configuredPorts(svc types.ServiceConfig) string {
+	var parts []string
+	for _, port := range svc.Ports {
+		s := ""
+		if port.Published != "" {
+			s = port.Published + "->"
 		}
+		s += itoa(int(port.Target))
+		proto := port.Protocol
+		if proto == "" {
+			proto = "tcp"
+		}
+		s += "/" + proto
+		parts = append(parts, s)
 	}
-	return ""
+	return joinComma(parts)
+}
+
+func joinComma(parts []string) string {
+	out := ""
+	for i, s := range parts {
+		if i > 0 {
+			out += ", "
+		}
+		out += s
+	}
+	return out
 }
