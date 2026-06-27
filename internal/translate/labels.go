@@ -22,5 +22,20 @@ const (
 	LabelConfigHash = "com.docker.compose.config-hash"
 )
 
+// fruitbox-native labels mirror the com.docker.compose.* set under the
+// io.fruitbox.* namespace. Carrying both means resources created by fruitbox
+// stay identifiable and manageable without depending on the Docker label
+// scheme — a path out of the Docker ecosystem.
+const (
+	FBLabelProject         = "io.fruitbox.project"
+	FBLabelService         = "io.fruitbox.service"
+	FBLabelContainerNumber = "io.fruitbox.container-number"
+	FBLabelOneoff          = "io.fruitbox.oneoff"
+	FBLabelVersion         = "io.fruitbox.version"
+	FBLabelNetwork         = "io.fruitbox.network"
+	FBLabelVolume          = "io.fruitbox.volume"
+	FBLabelConfigHash      = "io.fruitbox.config-hash"
+)
+
 // Version is the fruitbox version reported in resource labels.
 const Version = "0.1.0"

@@ -14,6 +14,9 @@ func TestBuildNetworkCreateArgs(t *testing.T) {
 		"network", "create",
 		"--label", "com.docker.compose.network=basic_net",
 		"--label", "com.docker.compose.project=basic",
+		"--label", "io.fruitbox.network=basic_net",
+		"--label", "io.fruitbox.project=basic",
+		"--label", "io.fruitbox.version=0.1.0",
 		"basic_net",
 	}
 	if !reflect.DeepEqual(args, want) {
@@ -35,6 +38,9 @@ func TestBuildVolumeCreateArgs(t *testing.T) {
 		"volume", "create",
 		"--label", "com.docker.compose.project=basic",
 		"--label", "com.docker.compose.volume=basic_dbdata",
+		"--label", "io.fruitbox.project=basic",
+		"--label", "io.fruitbox.version=0.1.0",
+		"--label", "io.fruitbox.volume=basic_dbdata",
 		"basic_dbdata",
 	}
 	if !reflect.DeepEqual(args, want) {

@@ -24,7 +24,9 @@ func BuildNetworkCreateArgs(projectName string, net types.NetworkConfig) []strin
 	for _, k := range sortedKeys(net.DriverOpts) {
 		args = append(args, "--option", k+"="+net.DriverOpts[k])
 	}
-	for _, l := range labelArgs(net.Labels, LabelProject, projectName, LabelNetwork, networkKeyName(net)) {
+	for _, l := range labelArgs(net.Labels,
+		LabelProject, projectName, LabelNetwork, networkKeyName(net),
+		FBLabelProject, projectName, FBLabelNetwork, networkKeyName(net), FBLabelVersion, Version) {
 		args = append(args, "--label", l)
 	}
 
@@ -43,7 +45,9 @@ func BuildVolumeCreateArgs(projectName string, vol types.VolumeConfig) []string 
 	for _, k := range sortedKeys(vol.DriverOpts) {
 		args = append(args, "--opt", k+"="+vol.DriverOpts[k])
 	}
-	for _, l := range labelArgs(vol.Labels, LabelProject, projectName, LabelVolume, vol.Name) {
+	for _, l := range labelArgs(vol.Labels,
+		LabelProject, projectName, LabelVolume, vol.Name,
+		FBLabelProject, projectName, FBLabelVolume, vol.Name, FBLabelVersion, Version) {
 		args = append(args, "--label", l)
 	}
 

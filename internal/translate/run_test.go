@@ -51,6 +51,11 @@ func TestBuildRunArgsWeb(t *testing.T) {
 		"--label", "com.docker.compose.oneoff=False",
 		"--label", "com.docker.compose.project=basic",
 		"--label", "com.docker.compose.service=web",
+		"--label", "io.fruitbox.container-number=1",
+		"--label", "io.fruitbox.oneoff=False",
+		"--label", "io.fruitbox.project=basic",
+		"--label", "io.fruitbox.service=web",
+		"--label", "io.fruitbox.version=0.1.0",
 		"nginx:1.27",
 	}
 	if !reflect.DeepEqual(args, want) {

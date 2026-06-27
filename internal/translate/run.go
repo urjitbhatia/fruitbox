@@ -231,14 +231,24 @@ func BuildRunArgs(p *composeProject, svc types.ServiceConfig, opts RunOptions) (
 
 // buildLabels returns the sorted "key=value" label arguments for a container.
 func buildLabels(p *composeProject, svc types.ServiceConfig, opts RunOptions) []string {
+	num := strconv.Itoa(opts.Number)
+	oneoff := boolWord(opts.Oneoff)
 	labels := map[string]string{
+		// Docker Compose identity labels.
 		LabelProject:         p.Name,
 		LabelService:         svc.Name,
-		LabelContainerNumber: strconv.Itoa(opts.Number),
-		LabelOneoff:          boolWord(opts.Oneoff),
+		LabelContainerNumber: num,
+		LabelOneoff:          oneoff,
+		// fruitbox-native mirror (path out of the Docker ecosystem).
+		FBLabelProject:         p.Name,
+		FBLabelService:         svc.Name,
+		FBLabelContainerNumber: num,
+		FBLabelOneoff:          oneoff,
+		FBLabelVersion:         Version,
 	}
 	if opts.ConfigHash != "" {
 		labels[LabelConfigHash] = opts.ConfigHash
+		labels[FBLabelConfigHash] = opts.ConfigHash
 	}
 	for k, v := range svc.Labels {
 		labels[k] = v
