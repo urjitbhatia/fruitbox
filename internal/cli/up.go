@@ -33,6 +33,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		timestamps     bool
 		quietBuild     bool
 		quietPull      bool
+		build          bool
+		watch          bool
 		scaleFlags     []string
 	)
 	cmd := &cobra.Command{
@@ -49,8 +51,9 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 			}
 			defer release()
 			up := engine.UpOptions{
-				Detach:             detach,
-				NoBuild:            noBuild,
+				Detach: detach,
+				// --build forces a build and overrides --no-build.
+				NoBuild:            noBuild && !build,
 				RemoveOrphans:      removeOrphans,
 				Scale:              scale,
 				NoStart:            noStart,
@@ -75,6 +78,14 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 			}
 			if cmd.Flags().Changed("timeout") {
 				up.Timeout = &timeout
+			}
+			// --watch: start the project (detached), then enter watch mode.
+			if watch {
+				up.Detach = true
+				if err := e.Up(cmd.Context(), proj, up); err != nil {
+					return err
+				}
+				return e.Watch(cmd.Context(), proj, 0, engine.WatchOptions{NoUp: true})
 			}
 			return e.Up(cmd.Context(), proj, up)
 		},
@@ -102,6 +113,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&timestamps, "timestamps", false, "Show timestamps")
 	f.BoolVar(&quietBuild, "quiet-build", false, "Suppress the build output")
 	f.BoolVar(&quietPull, "quiet-pull", false, "Pull without printing progress information")
+	f.BoolVar(&build, "build", false, "Build images before starting containers")
+	f.BoolVar(&watch, "watch", false, "Watch source code and rebuild/refresh containers on change")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }
