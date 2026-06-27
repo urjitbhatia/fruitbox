@@ -21,14 +21,14 @@ var knownFlagGaps = map[string][]string{
 	"build":  {"builder", "check", "print", "provenance", "push", "sbom", "ssh", "with-dependencies"},
 	"config": {"environment", "lock-image-digests", "resolve-image-digests", "variables"},
 	"cp":     {"archive", "follow-link"},
-	"create": {"build", "quiet-pull", "yes"},
+	"create": {"build", "yes"},
 	"events": {"since", "until"},
 	"exec":   {"privileged"},
 	"logs":   {"since", "until"},
 	"port":   {"index"},
 	"pull":   {"policy"},
-	"run":    {"quiet", "quiet-build", "quiet-pull", "use-aliases"},
-	"up":     {"always-recreate-deps", "build", "menu", "quiet-build", "quiet-pull", "renew-anon-volumes", "watch", "yes"},
+	"run":    {"use-aliases"},
+	"up":     {"always-recreate-deps", "build", "menu", "renew-anon-volumes", "watch", "yes"},
 	"watch":  {"prune"},
 }
 

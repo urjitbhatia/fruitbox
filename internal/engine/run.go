@@ -43,6 +43,9 @@ type RunOneOffOptions struct {
 	RemoveOrphans bool     // --remove-orphans
 	Pull          string   // --pull: "always" pulls the image before running
 	EnvFromFile   []string // --env-from-file: files of KEY=VALUE env entries
+	Quiet         bool     // --quiet: suppress progress/warnings
+	QuietBuild    bool     // --quiet-build
+	QuietPull     bool     // --quiet-pull
 }
 
 // RunOneOff starts dependencies (unless NoDeps) and then runs a single one-off
@@ -54,12 +57,12 @@ func (e *Engine) RunOneOff(ctx context.Context, p *types.Project, service string
 	}
 
 	if opts.Build {
-		if err := e.buildService(ctx, p, svc, BuildOptions{}); err != nil {
+		if err := e.buildService(ctx, p, svc, BuildOptions{Quiet: opts.QuietBuild || opts.Quiet}); err != nil {
 			return err
 		}
 	}
 	if opts.Pull == "always" {
-		if err := e.Pull(ctx, p, []string{service}, PullOptions{}); err != nil {
+		if err := e.Pull(ctx, p, []string{service}, PullOptions{Quiet: opts.QuietPull || opts.Quiet}); err != nil {
 			return err
 		}
 	}
@@ -103,8 +106,10 @@ func (e *Engine) RunOneOff(ctx context.Context, p *types.Project, service string
 		return err
 	}
 
-	for _, warning := range translate.UnsupportedWarnings(runSvc) {
-		e.logf("WARNING: %s: %s", svc.Name, warning)
+	if !opts.Quiet {
+		for _, warning := range translate.UnsupportedWarnings(runSvc) {
+			e.logf("WARNING: %s: %s", svc.Name, warning)
+		}
 	}
 
 	if opts.Detach {

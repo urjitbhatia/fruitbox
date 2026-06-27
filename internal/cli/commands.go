@@ -13,6 +13,7 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 		removeOrphans bool
 		forceRecreate bool
 		noRecreate    bool
+		quietPull     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -35,6 +36,7 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 				RemoveOrphans: removeOrphans,
 				ForceRecreate: forceRecreate,
 				NoRecreate:    noRecreate,
+				QuietPull:     quietPull,
 			})
 		},
 	}
@@ -45,6 +47,7 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
 	f.BoolVar(&forceRecreate, "force-recreate", false, "Recreate containers even if their configuration hasn't changed")
 	f.BoolVar(&noRecreate, "no-recreate", false, "If containers already exist, don't recreate them")
+	f.BoolVar(&quietPull, "quiet-pull", false, "Pull without printing progress information")
 	return cmd
 }
 

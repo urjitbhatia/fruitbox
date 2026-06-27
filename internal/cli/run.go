@@ -28,6 +28,9 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 		removeOrphans bool
 		pull          string
 		envFromFile   []string
+		quiet         bool
+		quietBuild    bool
+		quietPull     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "run [flags] SERVICE [COMMAND] [ARGS...]",
@@ -67,6 +70,9 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 				RemoveOrphans: removeOrphans,
 				Pull:          pull,
 				EnvFromFile:   envFromFile,
+				Quiet:         quiet,
+				QuietBuild:    quietBuild,
+				QuietPull:     quietPull,
 			})
 		},
 	}
@@ -93,5 +99,8 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&removeOrphans, "remove-orphans", false, "Remove containers for services not defined in the Compose file")
 	f.StringVar(&pull, "pull", "policy", `Pull image before running ("always"|"missing"|"never")`)
 	f.StringArrayVar(&envFromFile, "env-from-file", nil, "Set environment variables from file")
+	f.BoolVarP(&quiet, "quiet", "q", false, "Don't print anything to STDOUT")
+	f.BoolVar(&quietBuild, "quiet-build", false, "Suppress the build output")
+	f.BoolVar(&quietPull, "quiet-pull", false, "Pull without printing progress information")
 	return cmd
 }

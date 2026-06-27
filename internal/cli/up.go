@@ -31,6 +31,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		noLogPrefix    bool
 		noColor        bool
 		timestamps     bool
+		quietBuild     bool
+		quietPull      bool
 		scaleFlags     []string
 	)
 	cmd := &cobra.Command{
@@ -68,6 +70,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 				NoLogPrefix:        noLogPrefix,
 				NoColor:            noColor,
 				LogTimestamps:      timestamps,
+				QuietBuild:         quietBuild,
+				QuietPull:          quietPull,
 			}
 			if cmd.Flags().Changed("timeout") {
 				up.Timeout = &timeout
@@ -96,6 +100,8 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 	f.BoolVar(&noLogPrefix, "no-log-prefix", false, "Don't print prefix in logs")
 	f.BoolVar(&noColor, "no-color", false, "Produce monochrome output")
 	f.BoolVar(&timestamps, "timestamps", false, "Show timestamps")
+	f.BoolVar(&quietBuild, "quiet-build", false, "Suppress the build output")
+	f.BoolVar(&quietPull, "quiet-pull", false, "Pull without printing progress information")
 	f.StringArrayVar(&scaleFlags, "scale", nil, "Scale SERVICE to NUM instances (SERVICE=NUM)")
 	return cmd
 }

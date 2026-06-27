@@ -16,6 +16,7 @@ type CreateOptions struct {
 	RemoveOrphans bool   // remove containers for services not in the compose file
 	ForceRecreate bool   // recreate existing containers even if unchanged
 	NoRecreate    bool   // leave existing containers in place even if changed
+	QuietPull     bool   // suppress pull progress
 }
 
 // Create creates the project's networks, volumes and service containers
@@ -27,7 +28,7 @@ func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOption
 		}
 	}
 	if opts.Pull == "always" {
-		if err := e.Pull(ctx, p, nil, PullOptions{}); err != nil {
+		if err := e.Pull(ctx, p, nil, PullOptions{Quiet: opts.QuietPull}); err != nil {
 			return err
 		}
 	}

@@ -94,6 +94,9 @@ type UpOptions struct {
 	NoDeps bool
 	// Timeout overrides the stop grace period (seconds) when recreating.
 	Timeout *int
+	// QuietBuild / QuietPull suppress build / pull progress.
+	QuietBuild bool
+	QuietPull  bool
 	// AbortOnExit stops all containers (foreground) when any one exits.
 	AbortOnExit bool
 	// AbortOnFailure stops all containers (foreground) when any one fails.
@@ -184,12 +187,12 @@ func effectiveScale(svc types.ServiceConfig, overrides map[string]int) int {
 // container in dependency order. Services with a build section are built first.
 func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error {
 	if !opts.NoBuild {
-		if err := e.Build(ctx, p, nil, BuildOptions{}); err != nil {
+		if err := e.Build(ctx, p, nil, BuildOptions{Quiet: opts.QuietBuild}); err != nil {
 			return err
 		}
 	}
 	if opts.Pull == "always" {
-		if err := e.Pull(ctx, p, nil, PullOptions{}); err != nil {
+		if err := e.Pull(ctx, p, nil, PullOptions{Quiet: opts.QuietPull}); err != nil {
 			return err
 		}
 	}
@@ -202,7 +205,7 @@ func (e *Engine) Up(ctx context.Context, p *types.Project, opts UpOptions) error
 	// --no-start: create everything but don't start (delegates to create).
 	// Build/pull/orphans already handled above, so skip them here.
 	if opts.NoStart {
-		return e.Create(ctx, p, CreateOptions{Scale: opts.Scale, NoBuild: true})
+		return e.Create(ctx, p, CreateOptions{Scale: opts.Scale, NoBuild: true, ForceRecreate: opts.ForceRecreate, NoRecreate: opts.NoRecreate})
 	}
 
 	if err := e.ensureNetworks(ctx, p); err != nil {
