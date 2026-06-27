@@ -34,16 +34,16 @@ func newRunCommand(opts *globalOptions) *cobra.Command {
 		Short: "Run a one-off command for a service",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
+			defer release()
 			service := args[0]
 			var command []string
 			if len(args) > 1 {
 				command = args[1:]
 			}
-			e := opts.engine(cmd.OutOrStdout())
 			return e.RunOneOff(cmd.Context(), proj, service, engine.RunOneOffOptions{
 				Command:       command,
 				Detach:        detach,

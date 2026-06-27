@@ -57,6 +57,23 @@ func (g *globalOptions) engine(out io.Writer) *engine.Engine {
 	return engine.New(runner.NewExec(g.binary), out)
 }
 
+// lockedEngine loads the project, builds an engine, and acquires the project's
+// cross-process lock so concurrent mutating commands can't race. The caller
+// must defer the returned release function. Used by container-lifecycle
+// commands; read-only commands (config/ps/logs/ls/…) skip it.
+func (g *globalOptions) lockedEngine(cmd *cobra.Command) (*engine.Engine, *types.Project, func(), error) {
+	proj, err := g.load(cmd.Context())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	e := g.engine(cmd.OutOrStdout())
+	release, err := e.LockProject(proj.Name)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return e, proj, release, nil
+}
+
 // NewRootCommand builds the top-level fruitbox command tree.
 func NewRootCommand() *cobra.Command {
 	opts := &globalOptions{}

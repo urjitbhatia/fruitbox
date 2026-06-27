@@ -17,15 +17,16 @@ func newCreateCommand(opts *globalOptions) *cobra.Command {
 		Short: "Create the project's containers without starting them",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			proj, err := opts.load(cmd.Context())
-			if err != nil {
-				return err
-			}
 			scale, err := parseScale(scaleFlags)
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Create(cmd.Context(), proj, engine.CreateOptions{
+			e, proj, release, err := opts.lockedEngine(cmd)
+			if err != nil {
+				return err
+			}
+			defer release()
+			return e.Create(cmd.Context(), proj, engine.CreateOptions{
 				Scale:         scale,
 				NoBuild:       noBuild,
 				Pull:          pull,
@@ -51,11 +52,12 @@ func newRmCommand(opts *globalOptions) *cobra.Command {
 		Use:   "rm [SERVICE...]",
 		Short: "Remove stopped service containers",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Rm(cmd.Context(), proj, services, engine.RmOptions{Force: force, Stop: stop, Volumes: volumes})
+			defer release()
+			return e.Rm(cmd.Context(), proj, services, engine.RmOptions{Force: force, Stop: stop, Volumes: volumes})
 		},
 	}
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Don't ask to confirm removal")
@@ -99,18 +101,19 @@ func newScaleCommand(opts *globalOptions) *cobra.Command {
 		Short: "Scale services to the given number of replicas",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			proj, err := opts.load(cmd.Context())
-			if err != nil {
-				return err
-			}
 			scale, err := parseScale(args)
 			if err != nil {
 				return err
 			}
+			e, proj, release, err := opts.lockedEngine(cmd)
+			if err != nil {
+				return err
+			}
+			defer release()
 			// scale only touches the named services, so --no-deps is the
 			// effective default; accepted for compatibility.
 			_ = noDeps
-			return opts.engine(cmd.OutOrStdout()).Scale(cmd.Context(), proj, scale)
+			return e.Scale(cmd.Context(), proj, scale)
 		},
 	}
 	cmd.Flags().BoolVar(&noDeps, "no-deps", false, "Don't start dependent services")

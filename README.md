@@ -109,6 +109,19 @@ make test-integration      # go test -tags=integration ./test/integration/...
 A reproducible `docker compose` flag-compatibility audit is available via
 `make compat` (see `COMPATIBILITY.md`).
 
+## Concurrency safety
+
+Container-lifecycle commands (`up`, `down`, `create`, `rm`, `start`, `stop`,
+`restart`, `kill`, `scale`, `run`, `pause`, `unpause`) acquire a per-project
+advisory file lock (`flock` under `<tmp>/fruitbox/locks/`), so two mutating
+commands on the same project can't race into half-created/half-removed state.
+A blocked command fails fast with the holder's PID; read-only commands
+(`ps`, `logs`, `config`, `ls`, …) never lock.
+
+A foreground `up` handles Ctrl-C like docker compose: the first SIGINT
+gracefully stops the project's containers (and releases the lock); a second
+forces an immediate exit.
+
 ## Restart policies
 
 A foreground `fruitbox up` (without `-d`) supervises the project: it blocks

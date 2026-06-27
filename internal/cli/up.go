@@ -37,14 +37,15 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 		Use:   "up [SERVICE...]",
 		Short: "Create and start the project's containers",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
-			if err != nil {
-				return err
-			}
 			scale, err := parseScale(scaleFlags)
 			if err != nil {
 				return err
 			}
+			e, proj, release, err := opts.lockedEngine(cmd)
+			if err != nil {
+				return err
+			}
+			defer release()
 			up := engine.UpOptions{
 				Detach:             detach,
 				NoBuild:            noBuild,
@@ -71,7 +72,7 @@ func newUpCommand(opts *globalOptions) *cobra.Command {
 			if cmd.Flags().Changed("timeout") {
 				up.Timeout = &timeout
 			}
-			return opts.engine(cmd.OutOrStdout()).Up(cmd.Context(), proj, up)
+			return e.Up(cmd.Context(), proj, up)
 		},
 	}
 	f := cmd.Flags()
@@ -131,10 +132,11 @@ func newDownCommand(opts *globalOptions) *cobra.Command {
 		Short: "Stop and remove the project's containers, networks and (optionally) volumes",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
+			defer release()
 			down := engine.DownOptions{
 				RemoveVolumes: removeVolumes,
 				RemoveOrphans: removeOrphans,
@@ -143,7 +145,6 @@ func newDownCommand(opts *globalOptions) *cobra.Command {
 			if cmd.Flags().Changed("timeout") {
 				down.Timeout = &timeout
 			}
-			e := opts.engine(cmd.OutOrStdout())
 			return e.Down(cmd.Context(), proj, down)
 		},
 	}

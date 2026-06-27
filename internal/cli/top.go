@@ -24,11 +24,12 @@ func newPauseCommand(opts *globalOptions) *cobra.Command {
 		Use:   "pause [SERVICE...]",
 		Short: "Pause the project's containers (SIGSTOP)",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Pause(cmd.Context(), proj, services)
+			defer release()
+			return e.Pause(cmd.Context(), proj, services)
 		},
 	}
 }
@@ -38,11 +39,12 @@ func newUnpauseCommand(opts *globalOptions) *cobra.Command {
 		Use:   "unpause [SERVICE...]",
 		Short: "Resume paused containers (SIGCONT)",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Unpause(cmd.Context(), proj, services)
+			defer release()
+			return e.Unpause(cmd.Context(), proj, services)
 		},
 	}
 }

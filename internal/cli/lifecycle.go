@@ -42,11 +42,12 @@ func newStartCommand(opts *globalOptions) *cobra.Command {
 		Use:   "start [SERVICE...]",
 		Short: "Start existing containers for services",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Start(cmd.Context(), proj, services, engine.StartOptions{
+			defer release()
+			return e.Start(cmd.Context(), proj, services, engine.StartOptions{
 				Wait:        wait,
 				WaitTimeout: waitTimeout,
 			})
@@ -63,11 +64,12 @@ func newStopCommand(opts *globalOptions) *cobra.Command {
 		Use:   "stop [SERVICE...]",
 		Short: "Stop running containers without removing them",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Stop(cmd.Context(), proj, services, timeoutPtr(cmd))
+			defer release()
+			return e.Stop(cmd.Context(), proj, services, timeoutPtr(cmd))
 		},
 	}
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "Shutdown timeout in seconds")
@@ -83,14 +85,15 @@ func newRestartCommand(opts *globalOptions) *cobra.Command {
 		Use:   "restart [SERVICE...]",
 		Short: "Restart service containers",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
+			defer release()
 			// restart only touches the named services already, so --no-deps is
 			// the effective default; the flag is accepted for compatibility.
 			_ = noDeps
-			return opts.engine(cmd.OutOrStdout()).Restart(cmd.Context(), proj, services, timeoutPtr(cmd))
+			return e.Restart(cmd.Context(), proj, services, timeoutPtr(cmd))
 		},
 	}
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "Shutdown timeout in seconds")
@@ -107,11 +110,12 @@ func newKillCommand(opts *globalOptions) *cobra.Command {
 		Use:   "kill [SERVICE...]",
 		Short: "Force-stop service containers by sending a signal",
 		RunE: func(cmd *cobra.Command, services []string) error {
-			proj, err := opts.load(cmd.Context())
+			e, proj, release, err := opts.lockedEngine(cmd)
 			if err != nil {
 				return err
 			}
-			return opts.engine(cmd.OutOrStdout()).Kill(cmd.Context(), proj, services, signal, removeOrphans)
+			defer release()
+			return e.Kill(cmd.Context(), proj, services, signal, removeOrphans)
 		},
 	}
 	cmd.Flags().StringVarP(&signal, "signal", "s", "", "Signal to send (default SIGKILL)")
