@@ -130,6 +130,9 @@ func NewRootCommand() *cobra.Command {
 		newAttachCommand(opts),
 		newEventsCommand(opts),
 		newWatchCommand(opts),
+		newVolumesCommand(opts),
+		newStatsCommand(opts),
+		newExportCommand(opts),
 		newVersionCommand(),
 	)
 	return root
