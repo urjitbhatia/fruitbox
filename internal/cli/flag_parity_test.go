@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -35,10 +34,16 @@ var knownFlagGaps = map[string][]string{
 // flags with caps (e.g. `--no-TTY` on run).
 var flagRe = regexp.MustCompile(`--([A-Za-z][A-Za-z0-9-]*[A-Za-z0-9])`)
 
-// dockerFlags parses the long flags from `docker compose <cmd> --help`.
+// dockerFlags parses the long flags from `<compose> <cmd> --help`. An empty cmd
+// returns the global flags (`<compose> --help`).
 func dockerFlags(t *testing.T, cmd string) map[string]bool {
 	t.Helper()
-	out, _ := exec.Command("docker", "compose", cmd, "--help").CombinedOutput()
+	args := []string{}
+	if cmd != "" {
+		args = append(args, cmd)
+	}
+	args = append(args, "--help")
+	out, _ := composeCommand(args...).CombinedOutput()
 	set := map[string]bool{}
 	for _, m := range flagRe.FindAllStringSubmatch(string(out), -1) {
 		set[m[1]] = true
@@ -61,7 +66,7 @@ func fruitboxFlags(root, cmd *cobra.Command) map[string]bool {
 // (shrink the baseline) or a flag regressed/docker changed (investigate).
 func TestFlagParity(t *testing.T) {
 	requireCompatOptIn(t)
-	if _, err := exec.Command("docker", "compose", "version").Output(); err != nil {
+	if _, err := composeCommand("version").Output(); err != nil {
 		t.Skip("docker compose not available; skipping flag-parity ratchet")
 	}
 	root := NewRootCommand()
@@ -100,5 +105,50 @@ func TestFlagParity(t *testing.T) {
 					"If a flag regressed or docker changed, investigate.", cmdName, missing, want)
 			}
 		})
+	}
+}
+
+// TestFlagGapReport prints, per shared command, the docker compose flags
+// fruitbox does not implement for the configured compose binary. Unlike
+// TestFlagParity it makes no assertion about a single baseline, so it holds for
+// any version. It iterates every fruitbox command (not just those with recorded
+// gaps) so new flags in newer compose versions surface. scripts/compat-matrix.sh
+// runs it once per pinned version (via FRUITBOX_COMPOSE_BIN) and tabulates the
+// `GAP` lines. Output line format: "GAP|command|flag1,flag2".
+func TestFlagGapReport(t *testing.T) {
+	requireCompatOptIn(t)
+	if _, err := composeCommand("version").Output(); err != nil {
+		t.Skip("docker compose not available; skipping gap report")
+	}
+	root := NewRootCommand()
+	globals := fruitboxFlags(root, root)
+	dockerGlobals := dockerFlags(t, "")
+
+	var names []string
+	byName := map[string]*cobra.Command{}
+	for _, c := range root.Commands() {
+		if c.Name() == "help" || c.Hidden {
+			continue
+		}
+		names = append(names, c.Name())
+		byName[c.Name()] = c
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		dFlags := dockerFlags(t, name)
+		if len(dFlags) == 0 {
+			continue // docker compose has no such command
+		}
+		fFlags := fruitboxFlags(root, byName[name])
+		var missing []string
+		for f := range dFlags {
+			if fFlags[f] || globals[f] || dockerGlobals[f] {
+				continue
+			}
+			missing = append(missing, f)
+		}
+		sort.Strings(missing)
+		t.Logf("GAP|%s|%s", name, strings.Join(missing, ","))
 	}
 }

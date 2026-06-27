@@ -48,15 +48,42 @@ scale, start, stats, stop, top, unpause, up, version, volumes, wait, watch.
 Per-command flag gaps are tracked by `TestFlagParity` (the `knownFlagGaps`
 baseline) and can be regenerated with `scripts/compat-audit.sh`.
 
-Coverage has gone from 138 recorded gaps to 36. 22 of the 32 commands are at full
-flag parity, and the remaining 36 gaps are runtime limitations or out-of-scope
-features (listed below), not unfinished work.
+Coverage started at 138 recorded gaps and is now 24. 21 of the 32 commands are at
+full flag parity, and the remaining 24 gaps are runtime limitations or
+out-of-scope features (listed below), not unfinished work.
 
 These were checked against the Apple `container` v1.0.0 runtime through the
 integration lane (`make test-integration`). One limitation came out of that:
 `container inspect` reports only `state` ("stopped"), never a process exit code,
 so `up --abort-on-container-failure` and `--exit-code-from` fall back to 0 with a
 warning. `--abort-on-container-exit` works fully.
+
+### Across docker compose versions
+
+fruitbox doesn't use `docker compose` at runtime, so "which version" splits in
+two. Compose *file* parsing comes from the vendored `compose-go` library, not the
+CLI, so files written for any recent compose era load the same. The CLI *flag*
+surface is what can drift between releases, so `make compat-matrix` runs the gap
+report against several pinned versions. The gap set is identical across all of
+them:
+
+| Command | v5.2.0 | v5.1.4 | v5.0.2 | v2.40.3 |
+|---|---|---|---|---|
+| `attach` | `detach-keys`, `no-stdin`, `sig-proxy` | same | same | same |
+| `build` | `builder`, `check`, `print`, `provenance`, `sbom`, `ssh` | same | same | same |
+| `config` | `lock-image-digests`, `resolve-image-digests`, `variables` | same | same | same |
+| `cp` | `archive`, `follow-link` | same | same | same |
+| `events` | `since`, `until` | same | same | same |
+| `exec` | `privileged` | same | same | same |
+| `logs` | `since`, `until` | same | same | same |
+| `port` | `index` | same | same | same |
+| `run` | `use-aliases` | same | same | same |
+| `stats` | `all`, `no-trunc` | same | same | same |
+| `up` | `menu` | same | same | same |
+
+Every other command is at full flag parity across all four versions. Regenerate
+this table with `make compat-matrix` (set `FRUITBOX_MATRIX_VERSIONS` to choose
+versions).
 
 ### Why each remaining gap stays open
 

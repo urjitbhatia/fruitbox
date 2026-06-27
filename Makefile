@@ -1,4 +1,4 @@
-.PHONY: build test test-compat test-integration compat fmt vet
+.PHONY: build test test-compat test-integration compat compat-matrix fmt vet
 
 # Build the fruitbox binary.
 build:
@@ -23,6 +23,11 @@ test-integration:
 # Differential compatibility audit vs. the locally installed `docker compose`.
 compat: build
 	./scripts/compat-audit.sh ./bin/fruitbox
+
+# Flag-parity matrix across several pinned docker compose versions. Downloads
+# release binaries (cached) and renders a markdown table. Requires gh + python3.
+compat-matrix:
+	./scripts/compat-matrix.sh
 
 fmt:
 	gofmt -w $(shell find . -name '*.go' -not -path './vendor/*')

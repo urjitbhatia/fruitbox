@@ -32,20 +32,39 @@ func requireCompatOptIn(t *testing.T) {
 // hermetic. Run them against a pinned docker compose with
 // `FRUITBOX_COMPAT=1 go test ./internal/cli/...` or `make test-compat`.
 
-// dockerComposeAvailable reports whether `docker compose version` works.
+// composeInvocation is the command used to shell out to the reference compose
+// implementation. It defaults to `docker compose` (the plugin) but can be
+// overridden via FRUITBOX_COMPOSE_BIN to point at a specific standalone binary,
+// e.g. `FRUITBOX_COMPOSE_BIN=/path/to/docker-compose-v5.0.2`. This is what lets
+// scripts/compat-matrix.sh run the same diff against several pinned versions.
+func composeInvocation() []string {
+	if v := os.Getenv("FRUITBOX_COMPOSE_BIN"); v != "" {
+		return strings.Fields(v)
+	}
+	return []string{"docker", "compose"}
+}
+
+// composeCommand builds an *exec.Cmd for the configured compose binary with the
+// given subcommand args appended.
+func composeCommand(args ...string) *exec.Cmd {
+	inv := composeInvocation()
+	full := append(append([]string{}, inv[1:]...), args...)
+	return exec.Command(inv[0], full...)
+}
+
+// dockerComposeAvailable reports whether the configured compose binary runs.
 func dockerComposeAvailable(t *testing.T) bool {
 	t.Helper()
-	cmd := exec.Command("docker", "compose", "version")
-	if err := cmd.Run(); err != nil {
+	if err := composeCommand("version").Run(); err != nil {
 		return false
 	}
 	return true
 }
 
-// dockerComposeConfig runs `docker compose <args>` and returns stdout.
+// dockerComposeConfig runs `<compose> <args>` and returns stdout.
 func dockerComposeConfig(t *testing.T, args ...string) (string, error) {
 	t.Helper()
-	cmd := exec.Command("docker", append([]string{"compose"}, args...)...)
+	cmd := composeCommand(args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &bytes.Buffer{} // discard the obsolete-version warning etc.
