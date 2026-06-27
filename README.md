@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="assets/brand/logo.png" alt="fruitbox" width="120" />
-
-# fruitbox
+<img src="assets/brand/wordmark.png" alt="fruitbox" width="420" />
 
 **A `docker compose` for Apple's native `container` runtime.**
 
@@ -197,4 +195,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer version.
 - [Apple `container`](https://github.com/apple/container) — the runtime fruitbox drives.
 - [`compose-spec/compose-go`](https://github.com/compose-spec/compose-go) — the Compose
   reference parser that makes spec-faithful loading possible.
+
+---
+
+<sub>fruitbox is an independent project, not affiliated with, endorsed by, or sponsored by
+Apple Inc. or Docker, Inc. "Apple" and "`container`" are referenced descriptively to indicate
+runtime compatibility; "Docker" and "Docker Compose" are trademarks of Docker, Inc.</sub>
 </content>
