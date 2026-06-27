@@ -1,0 +1,16 @@
+services:
+  web:
+    image: nginx:1.27
+    ports:
+      - "8080:80"
+    depends_on:
+      cache:
+        condition: service_started
+  cache:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 5
+volumes:
+  cachedata:

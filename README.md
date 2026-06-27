@@ -1,173 +1,200 @@
-# 🍎📦 fruitbox
+<div align="center">
 
-**Docker Compose for Apple's native `container` runtime.**
+<img src="assets/brand/logo.png" alt="fruitbox" width="120" />
 
-fruitbox runs multi-container applications defined in [Compose](https://compose-spec.io)
-files on top of [Apple's `container`](https://github.com/apple/container) CLI —
-the lightweight-VM container runtime for Apple silicon. The goal is **100%
-Docker Compose API compatibility**: take any `compose.yaml` that works with
-`docker compose` and run it unchanged with `fruitbox`.
+# fruitbox
 
+**A `docker compose` for Apple's native `container` runtime.**
+
+Run your multi-container apps from a `compose.yaml` on Apple silicon — no Docker daemon required.
+
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Compose Spec](https://img.shields.io/badge/Compose-spec--faithful-6B9B8A)](https://compose-spec.io)
+[![Status](https://img.shields.io/badge/status-early-C4874B)](#status)
+
+</div>
+
+---
+
+fruitbox takes the [Compose](https://compose-spec.io) file you already have and runs it on
+[Apple's `container`](https://github.com/apple/container) — the lightweight-VM container
+runtime built into macOS for Apple silicon. Same `compose.yaml`, same commands you know from
+`docker compose`, but each service runs in its own fast native VM instead of a Docker daemon.
+
+```console
+$ fruitbox up -d
+Creating network "myapp_default"
+Starting myapp-db-1
+Starting myapp-web-1
+
+$ fruitbox ps
+NAME          IMAGE          SERVICE  STATUS   PORTS
+myapp-db-1    postgres:16    db       running
+myapp-web-1   nginx:1.27     web      running  0.0.0.0:8080->80/tcp
 ```
-fruitbox -f compose.yaml up -d
+
+## Quick start
+
+You need **macOS 15+ on Apple silicon** with Apple's [`container`](https://github.com/apple/container)
+installed and started (`container system start`), plus **Go 1.25+** to build.
+
+```bash
+# Install
+go install github.com/urjitbhatia/fruitbox/cmd/fruitbox@latest
+
+# …or build from source
+git clone https://github.com/urjitbhatia/fruitbox && cd fruitbox
+go build -o fruitbox ./cmd/fruitbox
 ```
+
+Then, in any directory with a `compose.yaml`:
+
+```bash
+fruitbox up -d          # build, create, and start everything
+fruitbox ps             # see what's running
+fruitbox logs -f        # tail logs (multiplexed, color-prefixed per service)
+fruitbox exec web sh    # shell into a service
+fruitbox down           # tear it all down
+```
+
+Global flags mirror Docker Compose: `-f/--file`, `-p/--project-name`, `--profile`,
+`--env-file`, `--project-directory`. (`--container-binary` points at a non-default `container`.)
 
 ## Why
 
-`docker compose` targets the Docker Engine API. Apple's `container` speaks a
-different CLI and runs each container in its own lightweight VM. fruitbox is the
-orchestration layer in between: it parses Compose files exactly the way Docker
-Compose does, then translates the resolved project model into `container`
-invocations and manages lifecycle, dependency ordering and resource grouping.
+`docker compose` talks to the Docker Engine API. Apple's `container` speaks a different CLI and
+runs each container in its own lightweight VM. fruitbox is the orchestration layer in between:
+it parses Compose files **exactly** the way Docker Compose does — using the same reference
+library — then translates the resolved model into `container` invocations and manages lifecycle,
+dependency ordering, health, restart policies, and resource grouping.
 
-## Design
+The headline benefit: keep your existing Compose workflow, drop the Docker daemon.
+
+## Status
+
+fruitbox is **early but already broadly usable** — 32 of `docker compose`'s commands are
+implemented and exercised against the real runtime, including `up`/`down`/`ps`/`logs`/`exec`/
+`build`/`run`/`watch` and config-hash-based recreation. It is **not yet at a 1.0**; expect rough
+edges, and see [COMPATIBILITY.md](./COMPATIBILITY.md) for a precise, machine-checked breakdown of
+exactly which commands and flags are supported and which can't be (and why).
+
+Issues and PRs welcome — see [Contributing](#contributing).
+
+## How it works
 
 fruitbox reuses the **official Compose reference parser**
-([`compose-spec/compose-go`](https://github.com/compose-spec/compose-go) — the
-same library Docker Compose itself uses) for loading, interpolation, merging,
-profiles and `extends`. This guarantees parsing fidelity with the latest spec.
-fruitbox then owns translation and orchestration:
+([`compose-spec/compose-go`](https://github.com/compose-spec/compose-go) — the same library
+Docker Compose itself uses) for loading, interpolation, merging, profiles and `extends`. That
+guarantees parsing fidelity with the latest spec. fruitbox owns the translation and orchestration:
 
 | Package | Responsibility |
 |---|---|
 | `internal/compose` | Loads compose files into a resolved `types.Project` (wraps compose-go) |
 | `internal/translate` | Converts services/networks/volumes → `container` argument vectors |
 | `internal/runner` | Executes the `container` CLI (mockable for tests) |
-| `internal/engine` | Orchestration: dependency ordering, up / down / ps / logs |
+| `internal/engine` | Orchestration: dependency order, recreate, health, restart, logs |
 | `internal/cli` | Cobra command tree mirroring `docker compose` |
 
-Resources carry the canonical `com.docker.compose.*` labels **and** a
-fruitbox-native `io.fruitbox.*` mirror, and containers are named
-`<project>-<service>-<n>` — so inspection and grouping stay compatible with
-Docker tooling while also giving a path out of the Docker ecosystem.
+Resources carry the canonical `com.docker.compose.*` labels **and** a fruitbox-native
+`io.fruitbox.*` mirror, and containers are named `<project>-<service>-<n>` — so they stay
+compatible with Docker tooling while also being identifiable without it.
 
-## Commands
+<details>
+<summary><strong>All 32 commands</strong> (click to expand)</summary>
 
-| Command | Status |
+| Command | Notes |
 |---|---|
-| `fruitbox config` | ✅ parse, resolve & render canonical YAML/JSON; `--services`, `--volumes`, `-q` |
-| `fruitbox up [-d]` | ✅ create networks & volumes, start services in dependency order |
-| `fruitbox down [-v]` | ✅ stop & remove containers (reverse order), networks, optional volumes |
-| `fruitbox ps [-q]` | ✅ list expected containers and live status |
-| `fruitbox logs [-f] [svc...]` | ✅ stream container logs |
-| `fruitbox build [svc...]` | ✅ build images (`build:` → `container build`) |
-| `fruitbox start/stop/restart [svc...]` | ✅ lifecycle control (dependency-ordered) |
-| `fruitbox kill [-s SIG] [svc...]` | ✅ signal containers |
-| `fruitbox pull [svc...]` | ✅ pull service images (deduped) |
-| `fruitbox exec [-it] SERVICE CMD` | ✅ run a command in a service container |
-| `fruitbox run [--rm] SERVICE [CMD]` | ✅ one-off run; starts deps, command override |
-| `fruitbox images [-q]` | ✅ list images used by services |
-| `fruitbox port SERVICE PORT` | ✅ resolve published host port |
-| `fruitbox cp SRC DEST` | ✅ copy files to/from a service container |
-| `fruitbox ls [-q]` | ✅ list running compose projects (runtime-wide) |
-| `fruitbox wait [svc...]` | ✅ block until containers stop, print exit code |
-| `fruitbox top [svc...]` | ✅ in-container `ps` (runtime has no native top) |
-| `fruitbox pause / unpause [svc...]` | ✅ suspend/resume via SIGSTOP/SIGCONT |
-| `fruitbox create [--scale]` | ✅ create containers without starting |
-| `fruitbox rm [-f] [-s] [svc...]` | ✅ remove stopped service containers |
-| `fruitbox push [svc...]` | ✅ push service images to registries |
-| `fruitbox scale SERVICE=N` | ✅ scale services up/down |
-| `fruitbox attach SERVICE` | ✅ attach to a container's I/O |
-| `fruitbox events` | ✅ stream lifecycle events (synthesized from runtime state) |
-| `fruitbox watch` | ✅ sync/restart/rebuild on source change (`develop.watch`) |
-| `fruitbox volumes [-q]` | ✅ list the project's volumes |
-| `fruitbox stats [--no-stream]` | ✅ live resource usage (`container stats`) |
-| `fruitbox export SERVICE -o f` | ✅ export a container filesystem to a tar |
-| `fruitbox version` | ✅ |
+| `config` | parse, resolve & render canonical YAML/JSON; `--services/--networks/--volumes/--images/--profiles/--hash/--environment` |
+| `up` | create + start in dependency order; recreate on config change; foreground log streaming + restart supervision |
+| `down` | stop & remove containers (reverse order), networks, optional volumes/images |
+| `ps` | live image/status/ports; `--format json`, `--filter`, `--status`, `--all`, `--services` |
+| `logs` | concurrent multiplexed streaming with color per-service prefixes; `--tail/--follow/--timestamps` |
+| `build` | `build:` → `container build`; `--build-arg/--no-cache/--pull/--push/--with-dependencies` |
+| `run` | one-off with deps; `--entrypoint/--user/--volume/--publish/--service-ports/--rm` |
+| `exec` | run a command in a service container (`-it`, `--index`, `--detach`) |
+| `create` / `start` / `stop` / `restart` / `kill` | lifecycle control (dependency-ordered) |
+| `pull` / `push` | image transfer (`--include-deps`, `--ignore-*-failures`, `--policy`) |
+| `pause` / `unpause` | suspend/resume via `SIGSTOP`/`SIGCONT` |
+| `scale` | scale services up/down |
+| `cp` | copy files to/from a service container |
+| `port` | resolve the published host port |
+| `top` | in-container `ps` |
+| `images` / `volumes` | list images / volumes used by the project |
+| `ls` | list running compose projects (runtime-wide) |
+| `stats` | live resource usage (`container stats`) |
+| `export` | export a container filesystem to a tar |
+| `events` | stream lifecycle events |
+| `wait` | block until containers stop, print exit code |
+| `attach` | attach to a container's I/O |
+| `watch` | sync/restart/rebuild on source change (`develop.watch`) |
+| `version` | |
 
-**32 `docker compose` commands implemented** (all but `commit`/`publish`/`bridge`, which have no Apple `container` equivalent). Every flag the runtime can support is implemented; see [COMPATIBILITY.md](./COMPATIBILITY.md).
+</details>
 
-`up` supports `-d`, `--no-build`, `--scale SERVICE=N`, `--remove-orphans`.
-`depends_on` conditions (`service_healthy`, `service_completed_successfully`)
-are honored — fruitbox supervises healthchecks itself since the runtime does not.
+## Compatibility & the honest bits
 
-Global flags mirror Docker Compose: `-f/--file`, `-p/--project-name`,
-`--project-directory`, `--profile`, `--env-file`, plus `--container-binary`.
+The goal is to run your existing `compose.yaml` unchanged. fruitbox supports the full Compose
+**service model** the runtime can express — `image`, `build`, `command`, `entrypoint`,
+`environment`, `ports`, `volumes`, `networks`, `depends_on` (incl. `service_healthy` /
+`service_completed_successfully`), `healthcheck`, `restart`, `secrets`/`configs`, `cpus`,
+`mem_limit`, `cap_add/drop`, `dns`, `scale`, and more.
 
-## Translation coverage
+Some things Apple's runtime simply can't do, and fruitbox is **upfront** about them rather than
+faking them:
 
-Service attributes mapped to `container run`/`create` today: `image`,
-`command`, `entrypoint`, `environment`, `ports`, `volumes` (named/bind/tmpfs,
-with project-scoped name resolution), `networks`, `user`, `working_dir`,
-`read_only`, `init`, `cpus`, `mem_limit`, `shm_size`, `cap_add`/`cap_drop`,
-`dns`/`dns_search`/`dns_opt`, `container_name`, `labels`, `scale`/`deploy.replicas`.
+- **Healthchecks** aren't run by the runtime, so fruitbox supervises them itself.
+- **`restart:` policies** have no daemon, so a foreground `up` supervises and restarts.
+- A few attributes have no runtime equivalent — `hostname`, `extra_hosts`, `sysctls` are
+  **emulated** (generated `/etc/hosts`, post-start `sysctl`, …); `privileged`, `devices`,
+  `mac_address`, `group_add` are **true VM-isolation boundaries** and emit an explicit `WARNING`.
+- A handful of `docker compose` flags map to runtime features that don't exist (e.g. `logs --since`
+  — the runtime stores no per-line timestamps). These are documented, not silently ignored.
 
-## Building & testing
+The full, **machine-verified** breakdown — including a `TestFlagParity` ratchet and a differential
+test against a real `docker compose` install — lives in [COMPATIBILITY.md](./COMPATIBILITY.md).
 
+## Robustness
+
+- **Concurrency-safe**: lifecycle commands take a per-project advisory `flock`, so two mutating
+  commands on the same project can't race; a blocked one fails fast with the holder's PID, and
+  read-only commands never lock.
+- **Graceful Ctrl-C**: a foreground `up` stops the project's containers on the first `SIGINT` and
+  force-quits on the second — just like `docker compose`.
+- **Idempotent**: re-running `up` reuses up-to-date containers (config-hash) and skips
+  already-created networks/volumes.
+
+## Development
+
+```bash
+go build ./cmd/fruitbox   # build
+go test ./...             # hermetic unit suite (no container runtime needed)
+make test-integration     # integration lane against the real `container` runtime
+make compat               # differential flag-audit vs. a local `docker compose`
 ```
-go build ./cmd/fruitbox      # build the binary
-go test ./...                # run the test suite (no container binary needed)
-```
 
-The unit suite is hermetic: translation and orchestration are tested against a
-fake runner, so no `container` install is required to develop fruitbox.
+The unit suite is hermetic — translation and orchestration run against a fake runner, so no
+`container` install is required to hack on fruitbox. The integration lane (build-tagged
+`integration`) drives the real runtime end-to-end and skips automatically when it's unavailable.
 
-There is also an **integration lane** that drives the built binary against the
-real Apple `container` runtime (full `up` → `ps` → `logs` → `exec` → recreate →
-`down` lifecycle, including port publishing and config-hash recreate). It is
-build-tagged and skips automatically when the runtime is unavailable:
+## Contributing
 
-```
-make test-integration      # go test -tags=integration ./test/integration/...
-```
+Contributions are very welcome — bug reports, compose files that don't work, and PRs.
 
-A reproducible `docker compose` flag-compatibility audit is available via
-`make compat` (see `COMPATIBILITY.md`).
+- Run `go test ./...` (and `make test-integration` if you have the runtime) before opening a PR.
+- New behavior is test-first: translation/orchestration changes get a `runner.Fake` test; flag
+  changes update the `TestFlagParity` ratchet in `internal/cli`.
+- Keep `gofmt`/`go vet` clean.
 
-## Concurrency safety
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer version.
 
-Container-lifecycle commands (`up`, `down`, `create`, `rm`, `start`, `stop`,
-`restart`, `kill`, `scale`, `run`, `pause`, `unpause`) acquire a per-project
-advisory file lock (`flock` under `<tmp>/fruitbox/locks/`), so two mutating
-commands on the same project can't race into half-created/half-removed state.
-A blocked command fails fast with the holder's PID; read-only commands
-(`ps`, `logs`, `config`, `ls`, …) never lock.
+## License
 
-A foreground `up` handles Ctrl-C like docker compose: the first SIGINT
-gracefully stops the project's containers (and releases the lock); a second
-forces an immediate exit.
+[MIT](./LICENSE) © fruitbox contributors.
 
-## Restart policies
+## Acknowledgements
 
-A foreground `fruitbox up` (without `-d`) supervises the project: it blocks
-until services stop and restarts containers per their `restart:` policy
-(`no` / `always` / `unless-stopped` / `on-failure[:max]`, plus
-`deploy.restart_policy`). Since Apple's runtime has no restart-policy daemon,
-fruitbox performs supervision itself.
-
-## Runtime-gap workarounds
-
-Apple's `container` CLI lacks flags for several Compose attributes. Rather than
-drop them, fruitbox emulates them:
-
-| Attribute / command | How fruitbox handles it |
-|---|---|
-| `hostname` | generates `/etc/hostname` and bind-mounts it read-only |
-| `extra_hosts` | generates `/etc/hosts` (loopback + entries) and bind-mounts it |
-| `sysctls` | applies namespaced sysctls via post-start `container exec sysctl -w` |
-| `top` | runs `ps` inside each container via `exec` |
-| `pause` / `unpause` | sends `SIGSTOP` / `SIGCONT` via `container kill --signal` |
-
-Generated files live under `<tmp>/fruitbox/<project>/<container>/`.
-
-The genuinely-unemulatable attributes — `privileged`, `devices`, `mac_address`,
-`group_add` — are true VM-isolation boundaries; fruitbox emits an explicit
-`WARNING` for these instead of silently ignoring them.
-
-## Compose spec versions
-
-The latest Compose Specification is the primary target. Legacy files with a
-top-level `version:` (Compose v2.x / v3.x) also load — the reference loader
-treats `version` as obsolete-but-tolerated, exactly like `docker compose`.
-
-## Roadmap
-
-- live `ps`/`watch` enrichment (replace mtime polling with fs events; richer
-  `ps` columns via `container ls` queries)
-- emulation for the remaining VM-isolation attributes if/when the runtime adds
-  the corresponding flags (`privileged`, `devices`, `mac_address`, `group_add`)
-
-## Requirements
-
-- macOS 15+ on Apple silicon, with [`container`](https://github.com/apple/container) installed
-- Go 1.25+ to build
+- [Apple `container`](https://github.com/apple/container) — the runtime fruitbox drives.
+- [`compose-spec/compose-go`](https://github.com/compose-spec/compose-go) — the Compose
+  reference parser that makes spec-faithful loading possible.
+</content>
