@@ -60,6 +60,7 @@ func fruitboxFlags(root, cmd *cobra.Command) map[string]bool {
 // exactly equal the recorded baseline. A diff means either a gap was closed
 // (shrink the baseline) or a flag regressed/docker changed (investigate).
 func TestFlagParity(t *testing.T) {
+	requireCompatOptIn(t)
 	if _, err := exec.Command("docker", "compose", "version").Output(); err != nil {
 		t.Skip("docker compose not available; skipping flag-parity ratchet")
 	}

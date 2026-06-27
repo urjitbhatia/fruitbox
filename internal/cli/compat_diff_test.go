@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -9,14 +10,27 @@ import (
 	"testing"
 )
 
+// requireCompatOptIn skips the version-sensitive docker compose differential
+// tests unless FRUITBOX_COMPAT is set. They compare against whatever local
+// `docker compose` is installed, so they only hold against a pinned version
+// (currently v5.0.2). The default `go test ./...`, including CI, skips them and
+// stays hermetic; run them with `FRUITBOX_COMPAT=1 go test ./internal/cli/...`.
+func requireCompatOptIn(t *testing.T) {
+	t.Helper()
+	if os.Getenv("FRUITBOX_COMPAT") == "" {
+		t.Skip("set FRUITBOX_COMPAT=1 to run version-sensitive docker compose differential tests")
+	}
+}
+
 // These tests assert that fruitbox produces output identical to the real
 // `docker compose` for the runtime-independent `config` surface (parse,
 // resolve, interpolate, merge, normalize, render). fruitbox runs in-process;
 // docker compose is shelled out as the reference oracle.
 //
-// They are skipped automatically when `docker compose` is unavailable, so the
-// suite stays hermetic on CI without Docker. Run them locally with Docker
-// installed to guard real compatibility.
+// They depend on the exact installed docker compose version, so they are opt-in
+// (gated on FRUITBOX_COMPAT) and skip in the default `go test ./...` to keep CI
+// hermetic. Run them against a pinned docker compose with
+// `FRUITBOX_COMPAT=1 go test ./internal/cli/...` or `make test-compat`.
 
 // dockerComposeAvailable reports whether `docker compose version` works.
 func dockerComposeAvailable(t *testing.T) bool {
@@ -62,6 +76,7 @@ type compatCase struct {
 }
 
 func TestConfigMatchesDockerCompose(t *testing.T) {
+	requireCompatOptIn(t)
 	if !dockerComposeAvailable(t) {
 		t.Skip("docker compose not available; skipping differential compatibility tests")
 	}

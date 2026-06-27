@@ -15,7 +15,9 @@ Baseline reference: `docker compose` v5.0.2, cross-checked against
 ## Automated tests
 
 Two tests in `internal/cli` check this against a real `docker compose`. They
-`t.Skip` when it isn't installed, so CI stays hermetic:
+depend on the installed docker compose version, so they're opt-in: set
+`FRUITBOX_COMPAT=1` (or run `make test-compat`) to run them. The default
+`go test ./...` skips them, so CI stays hermetic.
 
 - `TestConfigMatchesDockerCompose` runs fruitbox in-process and `docker compose`
   as a subprocess over a fixture matrix (`--services/--networks/--volumes/--profiles/--images`,

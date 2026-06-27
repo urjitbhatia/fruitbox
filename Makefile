@@ -1,4 +1,4 @@
-.PHONY: build test test-integration compat fmt vet
+.PHONY: build test test-compat test-integration compat fmt vet
 
 # Build the fruitbox binary.
 build:
@@ -7,6 +7,12 @@ build:
 # Fast, hermetic unit tests (no container runtime needed).
 test:
 	go test ./...
+
+# Version-sensitive differential tests against a local `docker compose`
+# (flag-parity ratchet + config oracle). Opt-in; excluded from the default
+# suite because they depend on the installed docker compose version.
+test-compat:
+	FRUITBOX_COMPAT=1 go test ./internal/cli/...
 
 # Integration tests that drive the real Apple `container` runtime.
 # Requires macOS on Apple silicon with `container` installed and running.
