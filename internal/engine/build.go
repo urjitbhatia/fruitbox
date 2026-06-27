@@ -14,6 +14,8 @@ type BuildOptions struct {
 	BuildArgs []string // extra KEY=VALUE build args (override compose)
 	NoCache   bool     // force --no-cache
 	Pull      bool     // force --pull
+	Quiet     bool     // -q/--quiet
+	Memory    string   // -m/--memory
 }
 
 // Build builds images for the named services that declare a build section
@@ -27,7 +29,7 @@ func (e *Engine) Build(ctx context.Context, p *types.Project, names []string, op
 		if err != nil {
 			return err
 		}
-		if err := e.buildService(ctx, p, applyBuildOverrides(svc, opts)); err != nil {
+		if err := e.buildService(ctx, p, applyBuildOverrides(svc, opts), opts); err != nil {
 			return err
 		}
 	}
@@ -68,12 +70,14 @@ func applyBuildOverrides(svc types.ServiceConfig, opts BuildOptions) types.Servi
 }
 
 // buildService builds a single service's image if it has a build section.
-func (e *Engine) buildService(ctx context.Context, p *types.Project, svc types.ServiceConfig) error {
-	args := translate.BuildBuildArgs(p.Name, svc)
+func (e *Engine) buildService(ctx context.Context, p *types.Project, svc types.ServiceConfig, opts BuildOptions) error {
+	args := translate.BuildBuildArgs(p.Name, svc, translate.BuildExtra{Quiet: opts.Quiet, Memory: opts.Memory})
 	if args == nil {
 		return nil // nothing to build
 	}
-	e.logf("Building %s", svc.Name)
+	if !opts.Quiet {
+		e.logf("Building %s", svc.Name)
+	}
 	if _, err := e.Runner.Run(ctx, args...); err != nil {
 		return fmt.Errorf("build %s: %w", svc.Name, err)
 	}

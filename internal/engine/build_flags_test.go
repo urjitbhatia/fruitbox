@@ -33,3 +33,21 @@ func TestBuildCLIOverrides(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildQuietMemory(t *testing.T) {
+	proj := load(t, "build")
+	fake := &runner.Fake{}
+	e := New(fake, io.Discard)
+	if err := e.Build(context.Background(), proj, []string{"api"}, BuildOptions{Quiet: true, Memory: "512m"}); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	var buildCall string
+	for _, c := range fake.CommandArgs() {
+		if strings.HasPrefix(c, "build ") {
+			buildCall = c
+		}
+	}
+	if !strings.Contains(buildCall, "--quiet") || !strings.Contains(buildCall, "--memory 512m") {
+		t.Errorf("build should carry --quiet --memory: %s", buildCall)
+	}
+}

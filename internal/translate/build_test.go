@@ -20,7 +20,7 @@ func TestBuildImageTagDefaults(t *testing.T) {
 func TestBuildBuildArgs(t *testing.T) {
 	proj := loadProject(t, "build")
 	api, _ := proj.GetService("api")
-	args := BuildBuildArgs(proj.Name, api)
+	args := BuildBuildArgs(proj.Name, api, BuildExtra{})
 	want := []string{
 		"build",
 		"--tag", "build_api",
@@ -55,7 +55,7 @@ func TestBuildRunArgsUsesBuiltTag(t *testing.T) {
 func TestBuildBuildArgsNilWhenNoBuild(t *testing.T) {
 	proj := loadProject(t, "basic")
 	web, _ := proj.GetService("web")
-	if args := BuildBuildArgs(proj.Name, web); args != nil {
+	if args := BuildBuildArgs(proj.Name, web, BuildExtra{}); args != nil {
 		t.Errorf("expected nil build args for image-only service, got %v", args)
 	}
 }

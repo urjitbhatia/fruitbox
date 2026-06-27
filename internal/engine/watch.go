@@ -104,7 +104,7 @@ func (e *Engine) Watch(ctx context.Context, p *types.Project, maxPolls int, opts
 				e.logf("watch: rebuilding %s", svc)
 			}
 			s, _ := p.GetService(svc)
-			_ = e.buildService(ctx, p, s)
+			_ = e.buildService(ctx, p, s, BuildOptions{})
 			_ = e.Restart(ctx, p, []string{svc}, nil)
 		}
 		for svc := range restart {

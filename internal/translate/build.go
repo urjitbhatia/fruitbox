@@ -16,9 +16,15 @@ func BuildImageTag(projectName string, svc types.ServiceConfig) string {
 	return sanitize(projectName) + "_" + sanitize(svc.Name)
 }
 
+// BuildExtra carries CLI-only build settings (not in the compose model).
+type BuildExtra struct {
+	Quiet  bool   // -q/--quiet
+	Memory string // -m/--memory
+}
+
 // BuildBuildArgs renders the arguments for `container build` from a service's
 // build configuration. It returns nil if the service has no build section.
-func BuildBuildArgs(projectName string, svc types.ServiceConfig) []string {
+func BuildBuildArgs(projectName string, svc types.ServiceConfig, extra BuildExtra) []string {
 	b := svc.Build
 	if b == nil {
 		return nil
@@ -27,6 +33,12 @@ func BuildBuildArgs(projectName string, svc types.ServiceConfig) []string {
 
 	args = append(args, "--tag", BuildImageTag(projectName, svc))
 
+	if extra.Quiet {
+		args = append(args, "--quiet")
+	}
+	if extra.Memory != "" {
+		args = append(args, "--memory", extra.Memory)
+	}
 	if b.Dockerfile != "" {
 		args = append(args, "--file", b.Dockerfile)
 	}

@@ -10,6 +10,8 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 		buildArgs []string
 		noCache   bool
 		pull      bool
+		quiet     bool
+		memory    string
 	)
 	cmd := &cobra.Command{
 		Use:   "build [SERVICE...]",
@@ -23,6 +25,8 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 				BuildArgs: buildArgs,
 				NoCache:   noCache,
 				Pull:      pull,
+				Quiet:     quiet,
+				Memory:    memory,
 			})
 		},
 	}
@@ -30,6 +34,8 @@ func newBuildCommand(opts *globalOptions) *cobra.Command {
 	f.StringArrayVar(&buildArgs, "build-arg", nil, "Set build-time variables for services")
 	f.BoolVar(&noCache, "no-cache", false, "Do not use cache when building the image")
 	f.BoolVar(&pull, "pull", false, "Always attempt to pull a newer version of the image")
+	f.BoolVarP(&quiet, "quiet", "q", false, "Don't print anything to STDOUT")
+	f.StringVarP(&memory, "memory", "m", "", "Set memory limit for the build container")
 	return cmd
 }
 

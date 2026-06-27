@@ -54,7 +54,7 @@ func (e *Engine) RunOneOff(ctx context.Context, p *types.Project, service string
 	}
 
 	if opts.Build {
-		if err := e.buildService(ctx, p, svc); err != nil {
+		if err := e.buildService(ctx, p, svc, BuildOptions{}); err != nil {
 			return err
 		}
 	}
