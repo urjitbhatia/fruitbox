@@ -14,6 +14,8 @@ type CreateOptions struct {
 	NoBuild       bool   // skip building images for services with a build section
 	Pull          string // "always" pulls images before creating
 	RemoveOrphans bool   // remove containers for services not in the compose file
+	ForceRecreate bool   // recreate existing containers even if unchanged
+	NoRecreate    bool   // leave existing containers in place even if changed
 }
 
 // Create creates the project's networks, volumes and service containers
@@ -53,7 +55,20 @@ func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOption
 			e.logf("WARNING: %s: %s", svc.Name, warning)
 		}
 		hash := translate.ServiceConfigHash(svc)
+		decideOpts := UpOptions{ForceRecreate: opts.ForceRecreate, NoRecreate: opts.NoRecreate}
 		for n := 1; n <= effectiveScale(svc, opts.Scale); n++ {
+			cname := containerName(p, svc, n)
+			switch e.decideContainer(ctx, cname, hash, decideOpts) {
+			case decisionStart:
+				// An up-to-date container already exists; create leaves it as-is.
+				e.logf("%s is up-to-date", cname)
+				continue
+			case decisionRecreate:
+				e.logf("Recreating %s", cname)
+				_, _ = e.Runner.Run(ctx, e.stopArgs(p, nameRef{Service: svc.Name, Container: cname})...)
+				_, _ = e.Runner.Run(ctx, "delete", cname)
+			case decisionCreate:
+			}
 			mounts, err := e.prepareGeneratedMounts(p, svc, n)
 			if err != nil {
 				return err
@@ -67,7 +82,7 @@ func (e *Engine) Create(ctx context.Context, p *types.Project, opts CreateOption
 			if err != nil {
 				return err
 			}
-			e.logf("Creating %s", containerName(p, svc, n))
+			e.logf("Creating %s", cname)
 			if _, err := e.Runner.Run(ctx, args...); err != nil {
 				return fmt.Errorf("create %s: %w", svc.Name, err)
 			}

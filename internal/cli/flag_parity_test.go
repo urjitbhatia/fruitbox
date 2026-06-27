@@ -21,7 +21,7 @@ var knownFlagGaps = map[string][]string{
 	"build":  {"builder", "check", "print", "provenance", "push", "sbom", "ssh", "with-dependencies"},
 	"config": {"environment", "lock-image-digests", "resolve-image-digests", "variables"},
 	"cp":     {"archive", "follow-link"},
-	"create": {"build", "force-recreate", "no-recreate", "quiet-pull", "yes"},
+	"create": {"build", "quiet-pull", "yes"},
 	"events": {"since", "until"},
 	"exec":   {"privileged"},
 	"logs":   {"since", "until"},

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/urjitbhatia/fruitbox/internal/runner"
+	"github.com/urjitbhatia/fruitbox/internal/translate"
 )
 
 func TestCreateUsesCreateVerbAndDoesNotStart(t *testing.T) {
@@ -129,5 +130,34 @@ func TestRmVolumes(t *testing.T) {
 	}
 	if firstMatch(fake.CommandArgs(), "delete --force --volumes basic-web-1") == -1 {
 		t.Errorf("rm -v should pass --volumes, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestCreateForceRecreate(t *testing.T) {
+	proj := load(t, "basic")
+	web, _ := proj.GetService("web")
+	fake := &runner.Fake{}
+	fake.On("inspect basic-web-1", runner.Result{Stdout: inspectWithHash(translate.ServiceConfigHash(web))}, nil)
+	fake.On("inspect basic-db-1", runner.Result{Stdout: `[{"status":"stopped"}]`}, nil)
+	e := New(fake, io.Discard)
+	if err := e.Create(context.Background(), proj, CreateOptions{ForceRecreate: true}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "delete basic-web-1") == -1 {
+		t.Errorf("create --force-recreate should recreate existing, calls: %v", fake.CommandArgs())
+	}
+}
+
+func TestCreateNoRecreateKeepsExisting(t *testing.T) {
+	proj := load(t, "basic")
+	fake := &runner.Fake{}
+	fake.On("inspect basic-web-1", runner.Result{Stdout: inspectWithHash("stale")}, nil)
+	fake.On("inspect basic-db-1", runner.Result{Stdout: inspectWithHash("stale")}, nil)
+	e := New(fake, io.Discard)
+	if err := e.Create(context.Background(), proj, CreateOptions{NoRecreate: true}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if firstMatch(fake.CommandArgs(), "delete basic-web-1") != -1 {
+		t.Errorf("create --no-recreate must NOT recreate, calls: %v", fake.CommandArgs())
 	}
 }
