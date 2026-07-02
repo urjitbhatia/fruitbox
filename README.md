@@ -11,6 +11,9 @@ Run the `compose.yaml` you already have on Apple silicon, without a Docker daemo
 [![Compose Spec](https://img.shields.io/badge/Compose-spec--faithful-6B9B8A)](https://compose-spec.io)
 [![Status](https://img.shields.io/badge/status-early-C4874B)](#status)
 
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/urjit)
+
+
 </div>
 
 ---
